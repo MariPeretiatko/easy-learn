@@ -1,0 +1,117 @@
+.reader-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-bottom: 22px;
+  font-size: 10px;
+  color: var(--muted);
+  flex-wrap: wrap;
+}
+.reader-toolbar strong {
+  font-size: 18px;
+  color: var(--primary);
+  margin-right: 5px;
+}
+.reader-toolbar .row-actions {
+  margin-left: auto;
+}
+.reader-sheet {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 55px 50px;
+  min-height: 400px;
+}
+.reader-sheet h2 {
+  font-family: Georgia, serif;
+  font-size: 33px;
+  line-height: 1.4;
+  font-weight: 400;
+  margin-bottom: 32px;
+}
+.reader-dark {
+  background: #23322a;
+  color: #edf1e8;
+  --soft: #3c4d33;
+  --text: #edf1e8;
+  --muted: #aab6a7;
+}
+.interactive-text {
+  font-family: Georgia, "Times New Roman", serif;
+  line-height: 1.9;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.text-word {
+  display: inline;
+  padding: 0 1px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.text-word:hover {
+  background: #d7e4bd;
+  color: #2d442b;
+}
+.text-word.learning,
+.text-word.review,
+.text-word.new {
+  background: #dfe8b56b;
+  border-bottom: 1px solid #aabd7c;
+}
+.text-word.mastered {
+  border-bottom: 1px dotted #a3b48f;
+}
+.interactive-container {
+  position: relative;
+}
+.selection-action {
+  position: sticky;
+  bottom: 25px;
+  display: flex;
+  margin: 12px auto;
+  z-index: 5;
+}
+.reader-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin: 25px 0;
+  flex-wrap: wrap;
+}
+.reader-end p {
+  margin: 0 auto 0 0;
+}
+.reader-sheet .eyebrow {
+  font-family: "Manrope", sans-serif;
+}
+@media (max-width: 640px) {
+  .reader-sheet {
+    padding: 30px 22px;
+  }
+  .reader-sheet h2 {
+    font-size: 26px;
+  }
+  .reader-toolbar {
+    gap: 12px;
+  }
+  .reader-toolbar > span:nth-child(2) {
+    order: 3;
+    width: 100%;
+  }
+  .reader-end {
+    justify-content: flex-start;
+  }
+  .reader-end p {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+}

@@ -1,0 +1,46 @@
+.offline-banner,
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--soft);
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.update-banner button {
+  border: 0;
+  background: var(--surface);
+  padding: 7px 12px;
+  border-radius: 5px;
+  font-size: 11px;
+}
+.install-button {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 45;
+  background: var(--primary);
+  color: var(--surface);
+  border: 0;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  box-shadow: 0 5px 20px #0002;
+}
+.word-title {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+  .install-button {
+    position: static;
+    margin: 10px auto;
+  }
+  .offline-banner {
+    font-size: 10px;
+  }
+}
