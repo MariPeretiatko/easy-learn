@@ -2,238 +2,250 @@ import { Link } from "react-router-dom";
 import {
   ArrowRight,
   ArrowUpRight,
-  BookOpen,
-  Clock3,
-  Flame,
   Layers,
   Plus,
+  Flame,
   Sparkles,
-  Play,
+  Check,
+  Volume2,
+  RotateCcw,
+  BookOpen,
+  Clock,
 } from "lucide-react";
 import { useData } from "../hooks/useData";
 import { useSettings } from "../store/useSettings";
-import { perform, useUI } from "../store/useUI";
-import { dateKey } from "../utils/format";
-import { Loading, Meter } from "../components/UI";
-import { streaks } from "../features/statistics/metrics";
-import { WeeklyOverview } from "../features/statistics/WeeklyOverview";
+import { Loading } from "../components/UI";
+import { perform } from "../store/useUI";
 import { loadDemo } from "../services/demo";
-import { StudyModeCards } from "../components/StudyModeCards";
+import { streaks } from "../features/statistics/metrics";
+import { recentStudyItems } from "../services/recent";
+import { dateKey } from "../utils/format";
+
 export function Dashboard() {
-  const data = useData();
-  const { settings } = useSettings();
-  const openWord = useUI((s) => s.openWord);
+  const data = useData([
+    "words",
+    "statistics",
+    "recent",
+    "decks",
+    "collections",
+    "drafts",
+  ]);
+  const settings = useSettings((s) => s.settings);
   if (!data) return <Loading />;
   const words = data.words.filter(
-    (w) => w.language === settings.learningLanguage,
+    (word) => word.language === settings.learningLanguage,
   );
   const due = words.filter(
-    (w) => w.status !== "ignored" && w.nextReviewAt <= Date.now(),
-  );
-  const today = data.statistics.find((d) => d.date === dateKey());
-  const mastered = words.filter((w) => w.status === "mastered").length;
+    (word) => word.status !== "ignored" && word.nextReviewAt <= Date.now(),
+  ).length;
+  const day = data.statistics.find((entry) => entry.date === dateKey());
+  const recent = recentStudyItems(data);
   return (
-    <>
-      <section className="home-intro hero">
-        <div className="home-eyebrow">
-          <Sparkles size={16} />
-          Всё для вашего следующего открытия
-        </div>
+    <div className="quizlet-home hero redesigned-home">
+      <section className="home-intro">
+        <span className="home-eyebrow">
+          <Sparkles size={17} /> Всё для вашего следующего открытия
+        </span>
         <h1>Как вы хотите заниматься?</h1>
         <p>
           Запоминайте новые слова с помощью карточек, тестов и практики.
           <br />
-          Читайте, смотрите и учитесь так, как удобно вам.
+          Учитесь так, как удобно вам.
         </p>
-        <Link to="/learn?mode=review" className="button home-cta">
-          Начать повторение
-          <ArrowRight size={18} />
+        <Link
+          className="button home-cta"
+          to={words.length ? "/learn?mode=review" : "/create-set"}
+        >
+          {words.length ? "Начать повторение" : "Создать первые карточки"}{" "}
+          <ArrowRight size={19} />
         </Link>
-        <div className="home-due">
-          {due.length
-            ? due.length + " слов ждут повторения"
-            : "Ваше обучение начинается с первого слова"}
-        </div>
+        <span className="home-due">
+          {words.length
+            ? `${due} слов ждут повторения`
+            : "Ваше следующее открытие начинается здесь"}
+        </span>
       </section>
-      <StudyModeCards />
+      <div className="discovery-grid">
+        <Link className="discovery-card discovery-learn" to="/learn?mode=learn">
+          <h2>
+            Заучивание <ArrowUpRight size={21} />
+          </h2>
+          <p>
+            От первого знакомства
+            <br />
+            до уверенного ответа.
+          </p>
+          <div className="discovery-art learn-art" aria-hidden="true">
+            <small>ВСПОМНИТЕ ПЕРЕВОД</small>
+            <strong>entdecken</strong>
+            <span>
+              открывать, узнавать <Check size={16} />
+            </span>
+            <em>У вас всё получится!</em>
+          </div>
+        </Link>
+        <Link
+          className="discovery-card discovery-flashcards"
+          to="/learn?mode=flashcards"
+        >
+          <h2>
+            Карточки <ArrowUpRight size={21} />
+          </h2>
+          <p>
+            Ваши слова.
+            <br />В вашем ритме.
+          </p>
+          <div className="discovery-art flashcard-art" aria-hidden="true">
+            <small>
+              DEUTSCH <Volume2 size={14} />
+            </small>
+            <strong>die Welt</strong>
+            <span>мир</span>
+            <RotateCcw size={16} />
+          </div>
+        </Link>
+        <Link className="discovery-card discovery-test" to="/learn?mode=test">
+          <h2>
+            Тест <ArrowUpRight size={21} />
+          </h2>
+          <p>
+            Проверьте знания.
+            <br />
+            Заметьте свой прогресс.
+          </p>
+          <div className="discovery-art test-art" aria-hidden="true">
+            <small>ВЫБЕРИТЕ ПЕРЕВОД</small>
+            <strong>путешествие</strong>
+            <span>○ &nbsp; die Sprache</span>
+            <span className="correct">
+              ● &nbsp; die Reise <Check size={14} />
+            </span>
+          </div>
+        </Link>
+        <Link className="discovery-card discovery-match" to="/learn?mode=match">
+          <h2>
+            Подбор пар <ArrowUpRight size={21} />
+          </h2>
+          <p>
+            Соединяйте слова.
+            <br />
+            Запоминайте играючи.
+          </p>
+          <div className="match-art" aria-hidden="true">
+            {["das Buch", "учиться", "мир", "lernen", "книга", "die Welt"].map(
+              (word) => (
+                <span key={word}>{word}</span>
+              ),
+            )}
+          </div>
+        </Link>
+      </div>
       <div className="home-section-heading">
         <h2>Ваше обучение сегодня</h2>
-        <span className="streak-pill">
-          <Flame size={18} />
-          Серия: {streaks(data.statistics).current} дн.
-        </span>
+        <Link className="streak-pill" to="/progress">
+          <Flame size={18} /> Серия: {streaks(data.statistics).current} дн.
+        </Link>
       </div>
-      {!data.words.length && !data.texts.length && (
-        <div className="demo-banner">
-          <div className="demo-banner-icon">
-            <Layers size={25} />
-          </div>
-          <div>
-            <strong>Познакомьтесь с Easy Learn</strong>
-            <p>Попробуйте готовую учебную коллекцию или создайте свою.</p>
-          </div>
-          <button
+      <div className="home-stats">
+        {(
+          [
+            [Layers, "К повторению", due, "/learn?mode=review"],
+            [Plus, "Новые слова", day?.wordsAdded ?? 0, "/vocabulary"],
+            [
+              BookOpen,
+              "Уже знаете",
+              words.filter((word) => word.status === "mastered").length,
+              "/progress",
+            ],
+            [
+              Clock,
+              "Минут занятий",
+              Math.round(day?.studyMinutes ?? 0),
+              "/progress",
+            ],
+          ] as const
+        ).map(([Icon, label, value, to]) => (
+          <Link key={label} to={to}>
+            <span>
+              <Icon size={22} />
+              {label}
+            </span>
+            <strong>{value}</strong>
+          </Link>
+        ))}
+      </div>
+      <div className="home-section-heading">
+        <h2>Продолжить обучение</h2>
+        <Link className="text-link" to="/library">
+          Вся библиотека <ArrowRight size={17} />
+        </Link>
+      </div>
+      <div className="home-recent-grid">
+        {recent.map((item) => (
+          <Link to={item.to} key={item.key}>
+            <span className="recent-icon">
+              {item.kind === "modules" ? (
+                <BookOpen size={23} />
+              ) : (
+                <Layers size={23} />
+              )}
+            </span>
+            <small>{item.kind === "modules" ? "Модуль" : "Колода"}</small>
+            <h3>{item.title}</h3>
+            <ArrowUpRight size={19} />
+          </Link>
+        ))}
+      </div>
+      {!recent.length && (
+        <div className="home-empty">
+          <Layers size={29} />
+          <h3>
+            {data.decks.length
+              ? "Откройте колоду из библиотеки"
+              : "Начните свою коллекцию знаний"}
+          </h3>
+          <p>Здесь будут последние открытые модули и колоды.</p>
+          <Link
             className="button secondary"
-            onClick={() =>
-              void perform(loadDemo, "Учебная коллекция добавлена")
-            }
+            to={data.decks.length ? "/library" : "/create-set"}
           >
-            Попробовать на примере
-          </button>
+            {data.decks.length ? "В библиотеку" : "Создать карточки"}
+          </Link>
+          {!data.decks.length && (
+            <button
+              className="button ghost"
+              onClick={() =>
+                void perform(loadDemo, "Учебная коллекция добавлена")
+              }
+            >
+              Попробовать на примере
+            </button>
+          )}
         </div>
       )}
-      <div className="metric-grid">
-        {[
-          [
-            Layers,
-            "К повторению",
-            due.length,
-            "Готовы к новой встрече",
-            "blue",
-          ],
-          [
-            Plus,
-            "Новые слова",
-            today?.wordsAdded ?? 0,
-            "Добавлено сегодня",
-            "sand",
-          ],
-          [
-            BookOpen,
-            "Уже знаете",
-            mastered,
-            "Из " + words.length + " слов в словаре",
-            "sage",
-          ],
-          [
-            Clock3,
-            "Время занятий",
-            Math.round(today?.studyMinutes ?? 0) + " мин",
-            "Практика сегодня",
-            "rose",
-          ],
-        ].map(([Icon, label, value, caption, color]) => {
-          const MetricIcon = Icon as typeof Layers;
-          return (
-            <div className="metric-card" key={String(label)}>
-              <span className={"metric-icon " + color}>
-                <MetricIcon size={22} />
-              </span>
-              <span className="metric-label">{String(label)}</span>
-              <strong>{String(value)}</strong>
-              <small>{String(caption)}</small>
-            </div>
-          );
-        })}
-      </div>
-      <div className="dashboard-grid">
-        <section className="panel">
-          <div className="section-heading">
-            <h2>Продолжить обучение</h2>
-            <Link to="/decks">
-              Моя библиотека <ArrowUpRight size={17} />
-            </Link>
+      {!!data.drafts.length && (
+        <>
+          <div className="home-section-heading">
+            <h2>Ваши черновики</h2>
           </div>
-          {data.recent.length ? (
-            data.recent.slice(0, 3).map((item) => (
+          <div className="quizlet-set-list">
+            {data.drafts.map((draft) => (
               <Link
-                className="continue-row"
-                to={
-                  item.kind === "vocabulary"
-                    ? "/vocabulary?word=" + item.id
-                    : "/" + item.kind + "/" + item.id
-                }
-                key={item.key}
+                className="quizlet-set-row"
+                key={draft.id}
+                to={`/${draft.id}/autosaved`}
               >
-                <span className="continue-icon">
-                  {item.kind === "videos" ? (
-                    <Play size={22} />
-                  ) : item.kind === "decks" ? (
-                    <Layers size={22} />
-                  ) : (
-                    <BookOpen size={22} />
-                  )}
+                <span className="set-row-meta">
+                  Черновик ·{" "}
+                  {draft.cards.filter((card) => card.term.trim()).length}{" "}
+                  терминов
                 </span>
-                <div>
-                  <strong>{item.title}</strong>
-                  <small>
-                    {
-                      {
-                        decks: "Учебная колода",
-                        reader: "Интерактивное чтение",
-                        videos: "Видео",
-                        vocabulary: "Слово из вашей коллекции",
-                      }[item.kind]
-                    }
-                  </small>
-                </div>
-                <ArrowRight size={19} />
+                <strong>{draft.title || "Без названия"}</strong>
               </Link>
-            ))
-          ) : (
-            <div className="start-path">
-              <h3>Занимайтесь тем, что вам интересно</h3>
-              <p>
-                Сохраните статью, добавьте любимое видео или соберите свою
-                первую колоду.
-              </p>
-              <Link className="text-link" to="/reader">
-                Открыть библиотеку <ArrowRight size={17} />
-              </Link>
-            </div>
-          )}
-          <div className="quick-actions">
-            <button onClick={() => openWord()}>
-              <Plus size={18} />
-              Слово
-            </button>
-            <Link to="/reader?add=1">
-              <BookOpen size={18} />
-              Текст
-            </Link>
-            <Link to="/videos?add=1">
-              <Play size={18} />
-              Видео
-            </Link>
-            <Link to="/decks?add=1">
-              <Layers size={18} />
-              Колода
-            </Link>
+            ))}
           </div>
-        </section>
-        <section className="panel goals-panel">
-          <div className="section-heading">
-            <h2>Ваши цели на сегодня</h2>
-            <Link to="/settings" aria-label="Изменить цели">
-              <ArrowUpRight size={20} />
-            </Link>
-          </div>
-          {[
-            ["Новые слова", today?.wordsAdded ?? 0, settings.newWordsGoal],
-            ["Повторения", today?.wordsReviewed ?? 0, settings.reviewsGoal],
-            [
-              "Минуты практики",
-              Math.round(today?.studyMinutes ?? 0),
-              settings.minutesGoal,
-            ],
-          ].map(([title, value, total]) => (
-            <div className="goal" key={title}>
-              <div>
-                <span>{title}</span>
-                <strong>
-                  {value} <small>/ {total}</small>
-                </strong>
-              </div>
-              <Meter value={Number(value)} total={Number(total)} />
-            </div>
-          ))}
-          <p className="goal-note">
-            <Sparkles size={18} />
-            Небольшая практика. Большая разница.
-          </p>
-        </section>
-      </div>
-      <WeeklyOverview days={data.statistics} words={words} />
-    </>
+        </>
+      )}
+    </div>
   );
 }

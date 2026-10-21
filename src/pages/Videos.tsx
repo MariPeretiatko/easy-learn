@@ -31,7 +31,7 @@ import { Listening } from "../features/youtube/Listening";
 import { useStudyTimer } from "../hooks/useStudyTimer";
 import type { Video } from "../types";
 export function VideosLibrary() {
-  const data = useData();
+  const data = useData(["videos", "words"]);
   const [params, setParams] = useSearchParams();
   const [edit, setEdit] = useState<Video>();
   const [remove, setRemove] = useState<Video | null>(null);
@@ -174,7 +174,7 @@ export function VideosLibrary() {
 }
 export function VideoPage() {
   const { id } = useParams();
-  const data = useData();
+  const data = useData(["videos"]);
   if (!data) return <Loading />;
   const video = data.videos.find((v) => v.id === id);
   if (!video)

@@ -15,6 +15,7 @@ import { reportError } from "../../store/useUI";
 import { speak } from "../../services/speech";
 import { recordReview } from "../../services/review";
 import { shuffled } from "../../utils/format";
+import { useSwipeNavigation } from "../../hooks/useSwipeNavigation";
 import { Meter } from "../../components/UI";
 const ratings: [Rating, string, string][] = [
   ["again", "Снова", "1"],
@@ -54,8 +55,12 @@ export function Flashcards({
     if (index + 1 >= queue.length) setDone(true);
     else setIndex(index + 1);
   };
+  const swipe = useSwipeNavigation(
+    () => setIndex((value) => Math.max(0, value - 1)),
+    next,
+  );
   async function rate(rating: Rating) {
-    if (busy || !flipped || reviewed.includes(word.id)) return;
+    if (busy || reviewed.includes(word.id)) return;
     setBusy(true);
     try {
       await recordReview(word, rating, Date.now() - started.current, deckId);
@@ -71,7 +76,9 @@ export function Flashcards({
     const onKey = (e: KeyboardEvent) => {
       if (
         busy ||
-        (e.target as HTMLElement).closest("input,textarea,select,dialog")
+        (e.target as HTMLElement).closest(
+          "input,textarea,select,dialog,aside,header",
+        )
       )
         return;
       if (e.code === "Space") {
@@ -87,7 +94,7 @@ export function Flashcards({
         setIndex((i) => Math.max(0, i - 1));
       }
       const rating = ratings[Number(e.key) - 1];
-      if (rating && flipped) void rate(rating[0]);
+      if (rating) void rate(rating[0]);
     };
     if (!done) window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -156,6 +163,7 @@ export function Flashcards({
       </div>
       <Meter value={index} total={queue.length} />
       <button
+        {...swipe}
         className={`flashcard ${flipped ? "flipped" : ""}`}
         onClick={() => setFlipped(!flipped)}
         aria-label="Перевернуть карточку"
@@ -163,7 +171,13 @@ export function Flashcards({
         <span className="eyebrow">
           {flipped ? "ОБРАТНАЯ СТОРОНА" : "ВСПОМНИТЕ ПЕРЕВОД"}
         </span>
-        <strong>
+        <strong
+          className={
+            (!reverse && !flipped) || (reverse && flipped)
+              ? `${word.bold ? "is-bold " : ""}${word.italic ? "is-italic " : ""}${word.underline ? "is-underlined " : ""}${word.highlight ? "is-highlighted" : ""}`
+              : undefined
+          }
+        >
           {flipped
             ? reverse
               ? word.term
@@ -172,6 +186,13 @@ export function Flashcards({
               ? word.translation
               : word.term}
         </strong>
+        {(flipped === reverse ? word.termImage : word.image) && (
+          <img
+            className="study-card-image"
+            src={flipped === reverse ? word.termImage : word.image}
+            alt={word.term}
+          />
+        )}
         {flipped && word.example && <p>{word.example}</p>}
         {flipped && (
           <small>
@@ -186,7 +207,6 @@ export function Flashcards({
               .join(" · ")}
           </small>
         )}
-        <span className="flip-hint">Нажмите на карточку или пробел</span>
       </button>
       <div className="flashcard-navigation">
         <button
@@ -217,7 +237,7 @@ export function Flashcards({
           <button
             key={value}
             className={`rating ${value}`}
-            disabled={!flipped || busy || reviewed.includes(word.id)}
+            disabled={busy || reviewed.includes(word.id)}
             onClick={() => void rate(value)}
           >
             <span>{label}</span>
@@ -228,9 +248,7 @@ export function Flashcards({
       <p className="hint center">
         {reviewed.includes(word.id)
           ? "Эта карточка уже оценена в текущем сеансе."
-          : flipped
-            ? "Насколько легко удалось вспомнить?"
-            : "Сначала откройте перевод, затем оцените ответ."}
+          : "Насколько легко удалось вспомнить?"}
       </p>
       <label className="check-label center">
         <input

@@ -1,8 +1,10 @@
+import { useSubjectNames } from "../../hooks/useSubjectNames";
+import { AutoTextarea } from "../../components/AutoTextarea";
 import { useState, type FormEvent } from "react";
 import type { TextDocument } from "../../types";
 import { Modal } from "../../components/UI";
 import { useSettings } from "../../store/useSettings";
-import { languages, uid } from "../../utils/format";
+import { uid } from "../../utils/format";
 import { TextRepository } from "../../services/repositories";
 export function TextEditor({
   text,
@@ -11,6 +13,7 @@ export function TextEditor({
   text?: TextDocument;
   onClose: () => void;
 }) {
+  const languages = useSubjectNames();
   const [doc, setDoc] = useState<TextDocument>(
     text ?? {
       id: uid(),
@@ -84,7 +87,7 @@ export function TextEditor({
         </div>
         <label>
           Текст
-          <textarea
+          <AutoTextarea
             required
             rows={12}
             value={doc.content}

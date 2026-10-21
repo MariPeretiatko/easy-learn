@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { Word } from "../../types";
 import { Empty } from "../../components/UI";
+import { Arcade } from "./Arcade";
 import { Flashcards } from "./Flashcards";
 import { Match } from "./Match";
 import { Quiz } from "../quizzes/Quiz";
@@ -9,10 +10,12 @@ export function PracticeSession({
   words,
   mode,
   deckId,
+  title,
 }: {
   words: Word[];
   mode: string;
   deckId?: string;
+  title?: string;
 }) {
   const [queue] = useState(() => [...words]);
   if (!queue.length)
@@ -36,7 +39,8 @@ export function PracticeSession({
       />
     );
   if (mode === "learn" || mode === "test")
-    return <Quiz words={queue} mode={mode} deckId={deckId} />;
+    return <Quiz title={title} words={queue} mode={mode} deckId={deckId} />;
+  if (mode === "blast") return <Arcade words={queue} deckId={deckId} />;
   if (mode === "match") return <Match words={queue} deckId={deckId} />;
   return <Flashcards words={queue} deckId={deckId} />;
 }

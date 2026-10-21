@@ -1,11 +1,15 @@
+import { AnswerAlternatives } from "../../components/AnswerAlternatives";
+import { useSubjectNames } from "../../hooks/useSubjectNames";
+import { AutoTextarea } from "../../components/AutoTextarea";
 import { useState, type FormEvent } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../../db/database";
 import { Modal } from "../../components/UI";
 import { useUI } from "../../store/useUI";
 import { useSettings } from "../../store/useSettings";
-import { newWord, WordRepository } from "../../services/repositories";
-import { languages, statusNames } from "../../utils/format";
+import { newWord } from "../../services/wordModel";
+import { WordRepository } from "../../services/repositories";
+import { statusNames } from "../../utils/format";
 import type { Word } from "../../types";
 export function WordEditorHost() {
   const draft = useUI((s) => s.wordDraft);
@@ -14,6 +18,7 @@ export function WordEditorHost() {
   ) : null;
 }
 function WordEditor({ draft }: { draft: Partial<Word> }) {
+  const languages = useSubjectNames();
   const { settings } = useSettings();
   const { closeWord, toast } = useUI();
   const [word, setWord] = useState(() =>
@@ -135,13 +140,16 @@ function WordEditor({ draft }: { draft: Partial<Word> }) {
             />
           </label>
         </div>
+        <AnswerAlternatives
+          value={word}
+          onChange={(value) => setWord((current) => ({ ...current, ...value }))}
+        />
         <details>
           <summary>Определение, грамматика и дополнительные поля</summary>
           <div className="form-grid">
             {field("definition", "Определение")}
             {field("pronunciation", "Произношение")}
             {field("ipa", "IPA")}
-            {field("nativeLanguage", "Код родного языка")}
             {word.language === "de" && (
               <>
                 {field("article", "Артикль")}
@@ -201,7 +209,7 @@ function WordEditor({ draft }: { draft: Partial<Word> }) {
             </label>
             <label className="span-2">
               Заметки
-              <textarea
+              <AutoTextarea
                 value={word.notes}
                 onChange={(e) => patch("notes", e.target.value)}
               />

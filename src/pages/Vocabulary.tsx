@@ -18,7 +18,7 @@ import { WordDetails } from "../features/vocabulary/WordDetails";
 import { ImportCSV } from "../features/vocabulary/ImportCSV";
 import { download, vocabularyCSV } from "../services/csv";
 export function VocabularyPage() {
-  const data = useData();
+  const data = useData(["words", "decks"]);
   const [importing, setImporting] = useState(false);
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState("");
@@ -198,7 +198,7 @@ export function VocabularyPage() {
             Удалить выбранные
           </button>
           <select
-            aria-label="Переместить выбранные в колоду"
+            aria-label="Добавить выбранные в колоду"
             value={move}
             onChange={(e) => setMove(e.target.value)}
           >
@@ -218,10 +218,10 @@ export function VocabularyPage() {
               void perform(async () => {
                 await WordRepository.move(selected, move);
                 setSelected([]);
-              }, "Слова перемещены")
+              }, "Слова добавлены в колоду")
             }
           >
-            Переместить
+            Добавить в колоду
           </button>
           <button className="button ghost" onClick={() => setSelected([])}>
             Снять выбор

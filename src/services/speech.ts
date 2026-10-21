@@ -1,3 +1,4 @@
+import { subjectSpeechCode } from "./subjects";
 import { useUI } from "../store/useUI";
 const locales: Record<string, string> = {
   de: "de-DE",
@@ -12,6 +13,14 @@ export function speak(text: string, language: string, slow = false) {
     useUI.getState().toast("Браузер не поддерживает озвучивание", true);
     return;
   }
+  const code = subjectSpeechCode(language);
+  if (!code) {
+    useUI
+      .getState()
+      .toast("Добавьте код языка для озвучки в настройках языка", true);
+    return;
+  }
+  language = code;
   speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = locales[language] ?? language;

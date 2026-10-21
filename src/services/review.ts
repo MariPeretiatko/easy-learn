@@ -44,3 +44,31 @@ export async function recordReview(
     },
   );
 }
+
+export interface ReviewAssessment {
+  word: Word;
+  correct: boolean;
+}
+/** Persist one exercise's assessments as a unit, dividing its total active time fairly. */
+export async function recordReviews(
+  assessments: ReviewAssessment[],
+  elapsed: number,
+  deckId?: string,
+) {
+  const responseTime =
+    Math.max(0, Number.isFinite(elapsed) ? elapsed : 0) /
+    Math.max(1, assessments.length);
+  await db.transaction(
+    "rw",
+    [db.words, db.reviews, db.statistics, db.decks],
+    async () => {
+      for (const { word, correct } of assessments)
+        await recordReview(
+          word,
+          correct ? "good" : "again",
+          responseTime,
+          deckId,
+        );
+    },
+  );
+}

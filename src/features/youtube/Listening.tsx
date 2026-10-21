@@ -1,3 +1,4 @@
+import { AutoTextarea } from "../../components/AutoTextarea";
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, RotateCcw, Volume2 } from "lucide-react";
 import type { Subtitle } from "../../types";
@@ -179,22 +180,34 @@ export function Listening({
       <h3>Диктант</h3>
       <label>
         Что вы услышали?
-        <textarea
+        <AutoTextarea
           value={dictation}
           onChange={(e) => {
             setDictation(e.target.value);
             setChecked(false);
           }}
+          onKeyDown={(event) => {
+            if (
+              event.key === "Enter" &&
+              !event.shiftKey &&
+              !event.nativeEvent.isComposing
+            ) {
+              event.preventDefault();
+              if (dictation.trim() && sentence) setChecked(true);
+            }
+          }}
+          enterKeyHint="done"
+          className={
+            checked
+              ? result?.accuracy === 100
+                ? "dictation-correct"
+                : "dictation-wrong"
+              : undefined
+          }
           placeholder="Запишите фразу на изучаемом языке…"
         />
       </label>
-      <button
-        className="button secondary"
-        disabled={!dictation.trim() || !sentence}
-        onClick={() => setChecked(true)}
-      >
-        Проверить диктант
-      </button>
+      <p className="hint">Нажмите Enter или «Готово» на клавиатуре.</p>
       {result && (
         <>
           <p className="hint">

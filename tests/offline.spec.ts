@@ -5,7 +5,7 @@ test("production PWA reloads and edits the local library with the network offlin
   baseURL,
 }) => {
   test.skip(
-    !baseURL?.includes("4173"),
+    process.env.E2E_PRODUCTION !== "1" && !baseURL?.includes("4173"),
     "Requires the production preview on port 4173",
   );
   await page.goto("/");
@@ -13,6 +13,7 @@ test("production PWA reloads and edits the local library with the network offlin
   await page.reload();
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
   await page.getByRole("button", { name: "Попробовать на примере" }).click();
+  await page.getByRole("button", { name: "Меню", exact: true }).click();
   await page.getByRole("link", { name: "Словарь", exact: true }).click();
   await expect(page.locator("tbody tr")).toHaveCount(12);
   await context.setOffline(true);

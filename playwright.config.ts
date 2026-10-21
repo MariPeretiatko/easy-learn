@@ -1,4 +1,7 @@
 import { defineConfig } from "@playwright/test";
+const production = process.env.E2E_PRODUCTION === "1";
+const localURL = `http://127.0.0.1:${production ? 4173 : 5173}`;
+const baseURL = process.env.E2E_BASE_URL ?? localURL;
 export default defineConfig({
   testDir: "./tests",
   timeout: 45000,
@@ -7,8 +10,20 @@ export default defineConfig({
   workers: 1,
   reporter: "list",
   use: {
-    baseURL: process.env.E2E_BASE_URL ?? "http://127.0.0.1:5173",
+    baseURL,
     channel: "chrome",
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: baseURL,
+          localStorage: [
+            { name: "easy-learn-import-deutsch-a1-a2-b1-ru-v1", value: "done" },
+            { name: "easy-learn-import-deutsch-a1-a2-b1-ru-v2", value: "done" },
+          ],
+        },
+      ],
+    },
     headless: true,
     viewport: { width: 1440, height: 1000 },
     trace: "retain-on-failure",
@@ -17,9 +32,10 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command:
-          "node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5173",
-        url: "http://127.0.0.1:5173",
-        reuseExistingServer: true,
+        command: production
+          ? "node node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 4173 --strictPort"
+          : "node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5173 --strictPort",
+        url: localURL,
+        reuseExistingServer: !process.env.CI,
       },
 });

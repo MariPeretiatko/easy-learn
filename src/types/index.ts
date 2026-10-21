@@ -1,4 +1,11 @@
-export type Language = "de" | "en" | "fr" | "es";
+export type Language =
+  "de" | "en" | "fr" | "es" | `custom-${string}` | `topic-${string}`;
+export interface StudySubject {
+  id: Language;
+  name: string;
+  kind: "language" | "topic";
+  speechCode?: string;
+}
 export type WordStatus = "new" | "learning" | "review" | "mastered" | "ignored";
 export type Rating = "again" | "hard" | "good" | "easy";
 export type EntryType =
@@ -6,7 +13,15 @@ export type EntryType =
 export interface Word {
   id: string;
   term: string;
+  image?: string;
+  termImage?: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  highlight?: boolean;
   translation: string;
+  acceptedTerms?: string[];
+  acceptedTranslations?: string[];
   language: Language;
   nativeLanguage: string;
   definition: string;
@@ -105,16 +120,18 @@ export interface DailyStatistics {
 export interface RecentItem {
   key: string;
   id: string;
-  kind: "decks" | "vocabulary" | "reader" | "videos";
+  kind: "decks" | "modules" | "vocabulary" | "reader" | "videos";
   title: string;
   timestamp: number;
 }
 export interface Settings {
+  customSubjects: StudySubject[];
+  strictAnswerCase: boolean;
+  strictAnswerArticles: boolean;
+  profileName?: string;
+  profileAvatar?: string;
   learningLanguage: Language;
   nativeLanguage: string;
-  newWordsGoal: number;
-  reviewsGoal: number;
-  minutesGoal: number;
   direction: "forward" | "reverse";
   autoPronounce: boolean;
   theme: "light" | "dark" | "system";
@@ -124,5 +141,61 @@ export interface Settings {
   readerDark: boolean;
   longestStreak: number;
   matchBest: Record<string, number>;
-  notifications: boolean;
+}
+
+export interface SetCard {
+  id: string;
+  wordId?: string;
+  term: string;
+  definition: string;
+  acceptedTerms?: string[];
+  acceptedTranslations?: string[];
+  image?: string;
+  termImage?: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  highlight?: boolean;
+}
+export interface SetDraft {
+  id: string;
+  sourceDeckId?: string;
+  title: string;
+  description: string;
+  language: Language;
+  nativeLanguage: string;
+  cards: SetCard[];
+  createdAt: number;
+  updatedAt: number;
+}
+export interface Collection {
+  id: string;
+  folderId?: string;
+  kind: "folder" | "class" | "course";
+  language?: Language;
+  title: string;
+  description: string;
+  deckIds: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+export interface Solution {
+  id: string;
+  title: string;
+  question: string;
+  answer: string;
+  createdAt: number;
+  updatedAt: number;
+}
+export interface TestResult {
+  id: string;
+  deckId?: string;
+  title: string;
+  timestamp: number;
+  answers: {
+    term: string;
+    expected: string;
+    given: string;
+    correct: boolean;
+  }[];
 }

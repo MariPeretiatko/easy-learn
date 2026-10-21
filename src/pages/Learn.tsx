@@ -1,83 +1,133 @@
+import { useSubjectNames } from "../hooks/useSubjectNames";
 import { Link, useSearchParams } from "react-router-dom";
 import { Layers, Brain, ClipboardCheck, Puzzle, RotateCcw } from "lucide-react";
-import { Loading, PageHeading } from "../components/UI";
+import { Empty, Loading, PageHeading } from "../components/UI";
 import { useData } from "../hooks/useData";
 import { useSettings } from "../store/useSettings";
 import { PracticeSession } from "../features/learning/PracticeSession";
-import { StudyModeCards } from "../components/StudyModeCards";
+import { StudySelection } from "../components/StudySelection";
+import { collectionDeckIds } from "../services/collections";
+
 const modes = [
   ["flashcards", "Карточки", "Знакомьтесь со словами в своём ритме.", Layers],
   ["review", "Повторение", "Встречайтесь со словами вовремя.", RotateCcw],
   ["learn", "Учить", "Разные задания, одна цель — запомнить.", Brain],
-  ["test", "Проверить себя", "Посмотрите, что уже получается.", ClipboardCheck],
+  ["test", "Тест", "Посмотрите, что уже получается.", ClipboardCheck],
+  ["blast", "Blast", "Отвечайте быстро и набирайте очки.", Puzzle],
   ["match", "Подбор пар", "Найдите пары слов и переводов.", Puzzle],
 ] as const;
 export function LearnPage() {
-  const data = useData();
+  const languages = useSubjectNames();
+  const data = useData(["words", "decks", "collections"]);
   const [params] = useSearchParams();
   const language = useSettings((s) => s.settings.learningLanguage);
-  const mode = params.get("mode");
-  const deckId = params.get("deck") ?? undefined;
+  const requestedMode = params.get("mode") ?? "review";
+  const mode = requestedMode === "blocks" ? "match" : requestedMode;
+  const deckIds = params.getAll("deck").filter(Boolean);
+  const deckId = deckIds.length === 1 ? deckIds[0] : undefined;
+  const collectionIds = [
+    ...new Set(params.getAll("collection").filter(Boolean)),
+  ];
   if (!data) return <Loading />;
-  const deck = data.decks.find((d) => d.id === deckId);
+  if (!deckIds.length && !collectionIds.length)
+    return (
+      <StudySelection
+        mode={mode}
+        language={language}
+        decks={data.decks}
+        collections={data.collections}
+        words={data.words}
+      />
+    );
+  const selectedDecks = data.decks.filter((deck) => deckIds.includes(deck.id));
+  const deck = selectedDecks.length === 1 ? selectedDecks[0] : undefined;
+  const selectedCollections = data.collections.filter((collection) =>
+    collectionIds.includes(collection.id),
+  );
+  const collection =
+    selectedCollections.length === 1 ? selectedCollections[0] : undefined;
+  if (
+    selectedCollections.length !== collectionIds.length ||
+    selectedDecks.length !== deckIds.length
+  )
+    return (
+      <Empty
+        title="Материалы не найдены"
+        description="Возможно, структура библиотеки изменилась. Выберите модуль или колоды заново."
+        action={
+          <Link className="button" to={`/learn?mode=${mode}`}>
+            Выбрать материалы
+          </Link>
+        }
+      />
+    );
+  const scopeDeckIds = new Set([
+    ...selectedDecks.map((deck) => deck.id),
+    ...selectedCollections.flatMap((collection) =>
+      collectionDeckIds(collection, data.collections),
+    ),
+  ]);
+  const scopedDecks = data.decks.filter((deck) => scopeDeckIds.has(deck.id));
+  const practiceLanguage = scopedDecks[0]?.language ?? language;
+  const selectedWords = new Set(scopedDecks.flatMap((deck) => deck.wordIds));
+  const sourceTitle =
+    deck?.title ??
+    collection?.title ??
+    (selectedCollections.length
+      ? `${selectedCollections.length} выбранных модулей`
+      : `${selectedDecks.length} выбранных колод`);
   const words = data.words.filter(
-    (w) =>
-      w.language === language &&
-      w.status !== "ignored" &&
-      (!deckId || deck?.wordIds.includes(w.id)),
+    (word) =>
+      word.language === practiceLanguage &&
+      word.status !== "ignored" &&
+      (!params.get("starred") || word.favorite) &&
+      selectedWords.has(word.id),
   );
   const queue =
     mode === "review"
       ? words.filter((w) => w.nextReviewAt <= Date.now())
       : words;
+  const actions = (
+    <>
+      <Link className="button secondary" to={`/learn?mode=${mode}`}>
+        Изменить выбор
+      </Link>
+      <Link
+        className="button secondary"
+        to={
+          deck
+            ? `/sets/${deck.id}`
+            : collection
+              ? `/${collection.kind === "course" ? "modules" : "folders"}/${collection.id}`
+              : "/library"
+        }
+      >
+        {deck ? "К колоде" : collection ? "К модулю" : "В библиотеку"}
+      </Link>
+    </>
+  );
   return (
     <>
-      <PageHeading
-        eyebrow="ВРЕМЯ ДЛЯ ПРАКТИКИ"
-        title={
-          mode
-            ? (modes.find((m) => m[0] === mode)?.[1] ?? "Практика")
-            : "Как вы хотите заниматься?"
-        }
-        description={
-          deck?.title ?? "Учитесь на словах из собственного словаря."
-        }
-        actions={
-          mode ? (
-            <Link className="button secondary" to="/learn">
-              Все режимы
-            </Link>
-          ) : undefined
-        }
-      />
-      {!mode ? (
-        <>
-          <StudyModeCards deckId={deckId} />
-          <section className="panel review-callout">
-            <div>
-              <h2>Время повторить знакомое</h2>
-              <p className="muted">
-                Слов к повторению:{" "}
-                {words.filter((w) => w.nextReviewAt <= Date.now()).length}.
-                Небольшая практика поможет закрепить знания.
-              </p>
-            </div>
-            <Link
-              className="button"
-              to={"/learn?mode=review" + (deckId ? "&deck=" + deckId : "")}
-            >
-              Начать повторение
-            </Link>
-          </section>
-        </>
+      {mode === "test" ? (
+        <nav className="quiz-context-actions" aria-label="Материалы теста">
+          {actions}
+        </nav>
       ) : (
-        <PracticeSession
-          key={`${language}-${mode}-${deckId ?? "all"}`}
-          words={queue}
-          mode={mode}
-          deckId={deckId}
+        <PageHeading
+          eyebrow="ВРЕМЯ ДЛЯ ПРАКТИКИ"
+          title={modes.find((item) => item[0] === mode)?.[1] ?? "Практика"}
+          description={`${languages[practiceLanguage]} · ${sourceTitle}`}
+          actions={actions}
         />
       )}
+
+      <PracticeSession
+        key={`${practiceLanguage}-${mode}-${[...deckIds, ...collectionIds].join(",")}-${params.get("starred") ?? ""}`}
+        title={sourceTitle}
+        words={queue}
+        mode={mode}
+        deckId={deckId}
+      />
     </>
   );
 }

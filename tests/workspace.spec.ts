@@ -17,6 +17,7 @@ const translations: Record<string, string> = {
 async function demo(page: Page) {
   await page.goto("/");
   await page.getByRole("button", { name: "Попробовать на примере" }).click();
+  await page.getByRole("button", { name: "Меню", exact: true }).click();
   await page.getByRole("link", { name: "Словарь", exact: true }).click();
   await expect(page.locator("tbody tr")).toHaveCount(12);
 }
@@ -26,12 +27,14 @@ test("vocabulary persists; decks, SRS, typing quiz and match share the collectio
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await demo(page);
-  await page.getByRole("link", { name: "Колоды", exact: true }).click();
+  await page.getByRole("button", { name: "Меню", exact: true }).click();
+  await page.getByRole("link", { name: "Библиотека", exact: true }).click();
+  await page.getByRole("link", { name: /Немецкий на каждый день/ }).click();
+  await expect(page.locator(".set-term-row")).toHaveCount(12);
   await page
-    .getByRole("link", { name: "Немецкий на каждый день", exact: true })
+    .getByRole("main")
+    .getByRole("link", { name: "Карточки", exact: true })
     .click();
-  await expect(page.locator("tbody tr")).toHaveCount(12);
-  await page.getByRole("link", { name: "Карточки", exact: true }).click();
   const firstTerm = (
     await page.locator(".flashcard strong").innerText()
   ).trim();
@@ -43,28 +46,26 @@ test("vocabulary persists; decks, SRS, typing quiz and match share the collectio
   await page.getByRole("button", { name: "Закрыть", exact: true }).click();
   await page.reload();
   await expect(page.locator("tbody tr")).toHaveCount(12);
-  await page.goto("/learn?mode=test");
+  await page.goto("/learn?mode=test&deck=demo-deck");
   await page.getByLabel("Количество заданий").fill("2");
   await page.getByLabel("Выбор ответа", { exact: true }).uncheck();
+  await page.getByLabel("Ввести ответ", { exact: true }).check();
+  await page.getByLabel("Язык ответа").selectOption("native");
   await page.getByRole("button", { name: "Начать тест", exact: true }).click();
   for (let i = 0; i < 2; i++) {
-    const term = (await page.locator(".quiz-prompt").innerText()).trim();
-    await page
-      .getByLabel("Ваш ответ", { exact: true })
-      .fill(translations[term]);
-    await page.getByRole("button", { name: "Проверить", exact: true }).click();
-    await expect(page.locator(".answer-feedback")).toContainText("Верно");
-    await page
-      .getByRole("button", {
-        name: i === 1 ? "Результаты" : "Дальше",
-        exact: true,
-      })
-      .click();
+    const card = page.locator(`#question-${i + 1}`);
+    const term = (await card.locator(".quiz-prompt").innerText()).trim();
+    await expect(card.getByRole("textbox")).toBeEnabled();
+    await card.getByRole("textbox").fill(translations[term]);
+    await card.getByRole("textbox").press("Enter");
   }
+  await page
+    .getByRole("button", { name: "Проверить тест", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "100% правильных ответов" }),
   ).toBeVisible();
-  await page.goto("/learn?mode=match");
+  await page.goto("/learn?mode=match&deck=demo-deck");
   await page.getByRole("button", { name: "Начать игру" }).click();
   const tiles = await page.locator(".match-tile").allTextContents();
   for (const term of tiles.filter((t) => translations[t])) {
@@ -111,9 +112,11 @@ test("reader word creates source deck, highlights persist and review completes",
   await page.goto("/reader");
   await expect(page.getByText("100% прочитано")).toBeVisible();
   await page.goto("/decks");
-  await page.getByRole("link", { name: "Im Café", exact: true }).click();
-  await expect(page.locator("tbody tr")).toHaveCount(1);
-  await page.getByRole("link", { name: "Повторить", exact: true }).click();
+  await page.getByRole("link", { name: /Im Café/ }).click();
+  await expect(page.locator(".set-term-row")).toHaveCount(1);
+  await page
+    .getByRole("link", { name: "Повторить колоду", exact: true })
+    .click();
   await page.getByRole("button", { name: "Перевернуть карточку" }).click();
   await page.getByRole("button", { name: /Хорошо/ }).click();
   await expect(
@@ -184,7 +187,7 @@ test("responsive pages, global search and dark mode have no overflow or console 
   await page.goto("/search?q=Buch");
   await expect(page.getByRole("link", { name: "Buch книга" })).toBeVisible();
   await page.goto("/settings");
-  await page.getByLabel("Тема").selectOption("dark");
+  await page.getByRole("combobox", { name: /^Тема/ }).selectOption("dark");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.setViewportSize({ width: 390, height: 844 });
   for (const route of [
@@ -217,7 +220,7 @@ test("responsive pages, global search and dark mode have no overflow or console 
   await expect(page.getByRole("link", { name: "Buch книга" })).toBeVisible();
   await page.getByRole("button", { name: "Меню", exact: true }).click();
   await expect(
-    page.getByRole("link", { name: "Главная", exact: true }),
+    page.getByRole("link", { name: "Библиотека", exact: true }),
   ).toBeVisible();
   expect(errors).toEqual([]);
 });

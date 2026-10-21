@@ -1,5 +1,5 @@
 import { db } from "../db/database";
-import { newWord } from "./repositories";
+import { newWord } from "./wordModel";
 export async function loadDemo() {
   await db.transaction("rw", db.words, db.decks, db.texts, async () => {
     const entries = [
@@ -162,27 +162,4 @@ export async function loadDemo() {
         favorite: false,
       });
   });
-}
-export async function removeDemo() {
-  await db.transaction(
-    "rw",
-    db.words,
-    db.decks,
-    db.texts,
-    db.reviews,
-    db.recent,
-    async () => {
-      const ids = (
-        await db.words.filter((w) => w.id.startsWith("demo-")).toArray()
-      ).map((w) => w.id);
-      await db.words.bulkDelete(ids);
-      await db.decks.delete("demo-deck");
-      await db.texts.delete("demo-text");
-      await db.decks.toCollection().modify((d) => {
-        d.wordIds = d.wordIds.filter((id) => !ids.includes(id));
-      });
-      await db.reviews.where("wordId").anyOf(ids).delete();
-      await db.recent.filter((r) => r.id.startsWith("demo-")).delete();
-    },
-  );
 }

@@ -7,12 +7,15 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.tests.json",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "check:unused": "node scripts/check-unused.mjs",
+    "check": "npm run typecheck && npm run check:unused && npm test && npm run build",
+    "test:e2e:production": "node scripts/test-production.mjs"
   },
   "dependencies": {
-    "@fontsource-variable/manrope": "^5.3.0",
+    "@fontsource-variable/comfortaa": "^5.3.0",
     "dexie": "^4.0.11",
     "dexie-react-hooks": "^1.1.7",
     "lucide-react": "^0.511.0",
@@ -31,10 +34,10 @@
     "@vitejs/plugin-react": "^4.5.0",
     "fake-indexeddb": "^6.0.1",
     "prettier": "^3.9.10",
-    "sass": "^1.89.0",
     "typescript": "~5.8.3",
     "vite": "^6.3.5",
     "vite-plugin-pwa": "^1.0.0",
     "vitest": "^3.1.4"
-  }
+  },
+  "packageManager": "pnpm@10.34.7"
 }

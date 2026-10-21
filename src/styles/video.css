@@ -1,0 +1,184 @@
+.video-thumbnail {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16/9;
+}
+
+.video-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.video-thumbnail > span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+
+.video-workspace {
+  max-width: 1000px;
+  margin: auto;
+}
+
+.player-frame {
+  position: relative;
+  aspect-ratio: 16/9;
+  min-height: 200px;
+  overflow: hidden;
+}
+
+.youtube-container {
+  position: absolute;
+  inset: 0;
+}
+
+.youtube-container iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.player-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.player-controls {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  margin: 12px 0 22px;
+  flex-wrap: wrap;
+}
+
+.player-controls > span {
+  color: var(--muted);
+  margin-right: auto;
+}
+
+.player-controls select {
+  width: 75px;
+  padding: 8px;
+}
+
+.transcript-panel .section-heading select {
+  padding: 9px;
+}
+
+.transcript {
+  max-height: 450px;
+  overflow: auto;
+}
+
+.subtitle-row {
+  display: flex;
+  align-items: flex-start;
+  transition: background 0.2s;
+}
+
+.subtitle-row > div {
+  flex: 1;
+}
+
+.subtitle-row .interactive-text {
+  font-family: inherit;
+  line-height: 1.9;
+}
+
+.timestamp {
+  background: none;
+  border: 0;
+  padding: 7px 0;
+}
+
+.subtitle-translation {
+  color: var(--muted);
+  margin: 7px 0 0;
+}
+
+.listening-tools {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 18px 0;
+}
+
+.listening-tools label {
+  margin: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.listening-tools select {
+  width: auto;
+}
+
+.dictation-result {
+  display: flex;
+  flex-wrap: wrap;
+  line-height: 1.9;
+  background: var(--bg);
+  border-radius: 8px;
+  margin-top: 15px;
+}
+
+.dictation-result span {
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+.dictation-result .correct {
+  background: #e1edd8;
+  color: #39522e;
+}
+
+.dictation-result .missing {
+  background: #fcf0d0;
+  color: #8f742f;
+}
+
+.dictation-result .incorrect {
+  background: #f6dedb;
+  color: #994e45;
+}
+
+.listening-sentence {
+  line-height: 1.8;
+  padding: 15px 0;
+}
+
+@media (max-width: 640px) {
+  .player-controls {
+    gap: 6px;
+    padding: 10px;
+  }
+  .player-controls .button.secondary {
+    order: 5;
+  }
+  .transcript-panel {
+    padding: 16px;
+  }
+  .subtitle-row {
+    gap: 9px;
+    padding: 12px 5px;
+  }
+  .subtitle-row .interactive-text {
+    font-size: 14px;
+  }
+  .transcript-panel .section-heading {
+    flex-wrap: wrap;
+  }
+  .player-controls > span {
+    font-size: 10px;
+  }
+}

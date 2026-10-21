@@ -31,7 +31,7 @@ import { normalize } from "../utils/format";
 import { useStudyTimer } from "../hooks/useStudyTimer";
 import type { TextDocument } from "../types";
 export function ReaderLibrary() {
-  const data = useData();
+  const data = useData(["texts"]);
   const [params, setParams] = useSearchParams();
   const [edit, setEdit] = useState<TextDocument>();
   const [remove, setRemove] = useState<TextDocument | null>(null);
@@ -171,7 +171,7 @@ export function ReaderLibrary() {
 }
 export function ReaderPage() {
   const { id } = useParams();
-  const data = useData();
+  const data = useData(["texts", "words"]);
   const { settings: s, update } = useSettings();
   const [selected, setSelected] = useState("");
   const [edit, setEdit] = useState(false);

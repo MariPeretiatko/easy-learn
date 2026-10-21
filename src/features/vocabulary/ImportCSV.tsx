@@ -1,14 +1,13 @@
+import { importVocabulary } from "../../services/importVocabulary";
+import { AutoTextarea } from "../../components/AutoTextarea";
 import { useState } from "react";
 import { Modal } from "../../components/UI";
 import { useData } from "../../hooks/useData";
 import { parseCSV, type CsvWord } from "../../services/csv";
-import { newWord, WordRepository } from "../../services/repositories";
 import { useSettings } from "../../store/useSettings";
 import { useUI } from "../../store/useUI";
-import { db } from "../../db/database";
-import { normalize } from "../../utils/format";
 export function ImportCSV({ onClose }: { onClose: () => void }) {
-  const data = useData();
+  const data = useData(["decks"]);
   const [text, setText] = useState("");
   const [rows, setRows] = useState<CsvWord[]>([]);
   const [deck, setDeck] = useState("");
@@ -27,39 +26,11 @@ export function ImportCSV({ onClose }: { onClose: () => void }) {
   async function save() {
     setBusy(true);
     try {
-      let added = 0,
-        skipped = 0;
-      await db.transaction(
-        "rw",
-        db.words,
-        db.decks,
-        db.statistics,
-        async () => {
-          const existing = new Set(
-            (
-              await db.words
-                .where("language")
-                .equals(settings.learningLanguage)
-                .toArray()
-            ).map((w) => normalize(w.term)),
-          );
-          for (const row of rows) {
-            if (existing.has(normalize(row.term))) {
-              skipped++;
-              continue;
-            }
-            await WordRepository.save(
-              newWord({
-                ...row,
-                language: settings.learningLanguage,
-                nativeLanguage: settings.nativeLanguage,
-              }),
-              deck || undefined,
-            );
-            existing.add(normalize(row.term));
-            added++;
-          }
-        },
+      const { added, skipped } = await importVocabulary(
+        rows,
+        settings.learningLanguage,
+        settings.nativeLanguage,
+        deck || undefined,
       );
       useUI
         .getState()
@@ -102,7 +73,7 @@ export function ImportCSV({ onClose }: { onClose: () => void }) {
       </label>
       <label>
         Или вставьте CSV
-        <textarea
+        <AutoTextarea
           rows={6}
           value={text}
           onChange={(e) => {

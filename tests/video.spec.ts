@@ -118,7 +118,7 @@ test("video transcript, playback controls, source words, looping and dictation",
     )
     .toBe(2);
   await page.getByLabel("Что вы услышали?").fill("Hallo");
-  await page.getByRole("button", { name: "Проверить диктант" }).click();
+  await page.getByLabel("Что вы услышали?").press("Enter");
   await expect(page.getByText("Точность: 50%", { exact: false })).toBeVisible();
   await expect(page.locator(".dictation-result .missing")).toHaveText("Welt");
   await page.getByRole("button", { name: "Следующая", exact: false }).click();
@@ -127,6 +127,6 @@ test("video transcript, playback controls, source words, looping and dictation",
     "Wir lernen Deutsch",
   );
   await page.goto("/decks");
-  await page.getByRole("link", { name: "Test clip", exact: true }).click();
-  await expect(page.locator("tbody")).toContainText("hallo");
+  await page.getByRole("link", { name: /Test clip/ }).click();
+  await expect(page.locator(".set-term-row")).toContainText("hallo");
 });

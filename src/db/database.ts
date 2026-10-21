@@ -7,6 +7,10 @@ import type {
   ReviewHistory,
   DailyStatistics,
   RecentItem,
+  SetDraft,
+  Collection,
+  Solution,
+  TestResult,
 } from "../types";
 export class LearningDatabase extends Dexie {
   words!: Table<Word, string>;
@@ -16,6 +20,10 @@ export class LearningDatabase extends Dexie {
   reviews!: Table<ReviewHistory, string>;
   statistics!: Table<DailyStatistics, string>;
   recent!: Table<RecentItem, string>;
+  drafts!: Table<SetDraft, string>;
+  collections!: Table<Collection, string>;
+  solutions!: Table<Solution, string>;
+  testResults!: Table<TestResult, string>;
   constructor() {
     super("easy-learn");
     this.version(1).stores({
@@ -26,6 +34,12 @@ export class LearningDatabase extends Dexie {
       reviews: "id, wordId, timestamp",
       statistics: "date",
       recent: "key, timestamp",
+    });
+    this.version(2).stores({
+      drafts: "id, updatedAt, sourceDeckId",
+      collections: "id, kind, updatedAt",
+      solutions: "id, updatedAt",
+      testResults: "id, deckId, timestamp",
     });
   }
 }

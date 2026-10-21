@@ -1,19 +1,30 @@
 import { Link } from "react-router-dom";
 import { Trophy } from "lucide-react";
 import type { Word } from "../../types";
-import type { Question } from "./engine";
+import type { Answer } from "./types";
 export function QuizResults({
   answers,
   start,
+  resultId,
+  learningSummary,
 }: {
-  answers: { question: Question; answer: string; correct: boolean }[];
+  answers: Answer[];
+  learningSummary?: { mastered: number; total: number };
   start: (source?: Word[]) => void;
+  resultId?: string;
 }) {
   const correct = answers.filter((a) => a.correct).length;
   const mistakes = answers.filter((a) => !a.correct);
   const mistakeWords = [
     ...new Map(
-      mistakes.map((a) => [a.question.word.id, a.question.word]),
+      mistakes.flatMap((a) =>
+        (
+          a.question.pairs?.filter(
+            (word) =>
+              !a.incorrectWordIds || a.incorrectWordIds.includes(word.id),
+          ) ?? [a.question.word]
+        ).map((word) => [word.id, word] as const),
+      ),
     ).values(),
   ];
   return (
@@ -24,6 +35,12 @@ export function QuizResults({
         {Math.round((correct / Math.max(1, answers.length)) * 100)}% правильных
         ответов
       </h2>
+      {learningSummary && (
+        <p className="learning-summary">
+          Закреплено карточек: {learningSummary.mastered} из{" "}
+          {learningSummary.total}. Точность учитывает все попытки занятия.
+        </p>
+      )}
       <p>
         {correct} правильно · {mistakes.length} ошибок · {answers.length}{" "}
         заданий
@@ -42,6 +59,11 @@ export function QuizResults({
         </div>
       )}
       <div className="inline-actions">
+        {resultId && (
+          <Link className="button secondary" to={`/results/${resultId}`}>
+            Сохранённый результат
+          </Link>
+        )}
         {mistakeWords.length > 0 && (
           <button className="button" onClick={() => start(mistakeWords)}>
             Повторить ошибки

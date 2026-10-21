@@ -1,35 +1,37 @@
-# Development checkpoints
+# Development guide
 
-## Implemented scope
+## Boundaries
 
-| Phase               | Result                                                                                             |
-| ------------------- | -------------------------------------------------------------------------------------------------- |
-| 1. Foundation       | React, strict TypeScript, routing, settings, IndexedDB repositories, reusable UI and themes.       |
-| 2. Vocabulary       | CRUD, details, filters, bulk actions, duplicates, favorites and pronunciation.                     |
-| 3. Decks            | CRUD, duplication, membership, source decks, export and progress.                                  |
-| 4. Flashcards       | Flip, audio, shuffle, keyboard controls, fullscreen and session results.                           |
-| 5. SRS              | Persistent due dates, rating intervals, review history and daily statistics.                       |
-| 6. Learn & Test     | Multiple question formats, retries, configurable tests and matching game.                          |
-| 7. Reader           | Interactive tokens and phrases, saved word states, reading progress and local translation adapter. |
-| 8. YouTube          | Library, real IFrame API, speed, seeking, persisted position and imported subtitles.               |
-| 9. Listening        | Sentence loops, A–B repeat, auto pause, transcript modes and aligned dictation feedback.           |
-| 10. Statistics      | Charts, goals, streaks, achievements, search and recent materials.                                 |
-| 11. Import / Export | CSV preview and deduplication; versioned, validated transactional JSON backup restore.             |
-| 12. PWA             | Install manifest, production asset cache, offline local learning and update prompt.                |
+- `src/App.tsx` owns routing and lazy route imports. Keep URLs and compatibility redirects stable.
+- `src/pages/` composes screens. Put exercise transitions, autosave and business rules in feature controllers or services, rather than growing another page-sized component.
+- `src/features/sets/` contains the draft controller, card editor, import dialog, deck preview/dialogs and deck-specific query. `useSetDraft` owns the serialized write queue, navigation flush and publishing boundary.
+- `src/features/quizzes/` separates the session controller, configuration, individual questions, matching state, pure answer evaluation/adaptive scheduling and transactional result persistence. Result rendering does not write to the database.
+- `src/components/` contains shared UI contracts, including native dialogs, auto-growing textareas and explicit answer alternatives. A domain-specific component belongs in its feature.
+- `src/services/` owns data-changing commands. Sets, collection membership, vocabulary imports, drafts, solutions, review scheduling and backups have explicit entry points. `wordModel` and subject validation are independent of React and database state.
+- `src/hooks/useData.ts` requires the exact tables a screen consumes. Do not restore a global subscription to every table. `useSetData` reads a deck's word IDs with `bulkGet`; the set page does not load the whole vocabulary.
+- `src/store/` separates persisted settings, defaults/legacy migration and transient UI state. Settings are browser-local; no authenticated identity is implied.
+- `src/styles/main.css` defines the cascade order. CSS is native and divided into foundation, controls, feature surfaces and responsive layout. Add styles in the responsible file; check both themes and narrow screens.
 
-The Quizlet-inspired redesign applies to the header, navigation, mode tiles, forms, tables, practice screens, reader, video library, statistics, dialogs, mobile layouts and dark theme. It uses original HTML/CSS illustrations and keeps the Easy Learn identity.
+## Data invariants
+
+1. Card identity includes learning language, definition language, normalized term and translation. A deck copy reuses card IDs and review history.
+2. A module contains decks of one language and may belong to a folder. Folder study includes child modules without duplicate card IDs.
+3. Publishing validates every card and commits words, deck, statistics and draft deletion together. A failure leaves the draft available.
+4. A completed test commits its assessments and saved result together. Matching assessments distinguish individual involved words.
+5. Removing deck membership or a deck retains vocabulary; removing a word removes memberships and review history. Removing a folder detaches child modules.
+6. Backups validate before replacing data. Keep existing IDs, table/schema compatibility and prepared-library migration markers. Deprecated settings are ignored without discarding current profile/rule settings.
+7. Written answers are submitted by Enter/Done; test drafts remain editable until the final check. Do not reintroduce submit-on-blur.
 
 ## Verification
 
-Verified on 2026-10-19 using installed Google Chrome and Playwright:
+Use the pinned pnpm version in `package.json` and the committed lockfile. `npm run check` runs strict TypeScript, a dependency/export reachability check, all unit tests and the PWA build. The reachability check starts at `src/main.tsx`, follows static imports/re-exports and literal dynamic imports; test references count when checking supported exports.
 
-- Strict TypeScript check and production build pass.
-- 17 unit tests pass: review scheduling, CSV, repositories, subtitles, dictation and metrics.
-- 6 production browser tests pass: vocabulary/decks/practice, reader/source decks, backup round trip, responsive layouts/search/dark theme, video/listening, and actual offline reload with writes.
-- The responsive test also checks mobile search focus and submission.
-- A separate live YouTube check confirmed the actual IFrame API reaches ready state and enables player controls. Automated video tests use a deterministic player fixture to validate application behavior.
-- Screenshots in `artifacts/` are generated from an isolated demonstration library; tests do not modify the user's browser data.
+`npm run test:e2e:production` starts or reuses preview on port 4173 and includes the offline reload/write scenario. Chrome is required. Set `E2E_BASE_URL` only when supplying your own running server. CI installs Chrome, runs the same checks and uploads failed traces. Action configuration follows the official [checkout](https://github.com/actions/checkout), [setup-node](https://github.com/actions/setup-node) and [upload-artifact](https://github.com/actions/upload-artifact) documentation. CI is defined in `.github/workflows/ci.yml`; local success does not imply a remote CI run has occurred.
 
-`scripts/smoke.mjs` provides route smoke checks. `scripts/screenshots.mjs` regenerates desktop and mobile screenshots against the production preview at port 4173. Detailed tests are in `tests/` and alongside services.
+Use meaningful behavior checks: rollback, card reuse, migration, answer rules, adaptive queue order, mobile input, menu dismissal and real production caching. Do not remove a user workflow merely because an old test expects removed UI; update the scenario to the current product flow.
 
-Translation remains a small local dictionary with manual fallback. Subtitles are imported manually, and notifications require an open app. These limitations and future service integration points are documented in README.md.
+`node scripts/screenshots.mjs` produces isolated examples in `artifacts/preview/`. `scripts/youtube-live-check.mjs` is a separate manual check against the real external player; regular video tests use a deterministic fixture.
+
+## Future cloud integration
+
+Supabase/Auth is a separate implementation. It requires ownership, isolation of local accounts, an offline mutation queue, idempotent review events, deletion propagation and conflict handling. Do not turn `useData` into direct network calls or upload the entire browser database on each answer. Preserve the command boundaries and distinguish shared catalog content from personal learning progress.

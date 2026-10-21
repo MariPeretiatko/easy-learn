@@ -17,7 +17,7 @@ import { useSettings } from "../store/useSettings";
 import { recentDays, streaks } from "../features/statistics/metrics";
 import { dateKey } from "../utils/format";
 export function ProgressPage() {
-  const data = useData();
+  const data = useData(["words", "statistics", "decks", "texts", "videos"]);
   const { settings, update } = useSettings();
   const streak = streaks(data?.statistics ?? []);
   useEffect(() => {
@@ -164,13 +164,13 @@ export function ProgressPage() {
                 <Bar
                   dataKey="words"
                   name="Новые слова"
-                  fill="#c5cbff"
+                  fill="#b5dece"
                   radius={[3, 3, 0, 0]}
                 />
                 <Bar
                   dataKey="reviews"
                   name="Повторения"
-                  fill="#6878ed"
+                  fill="#48b996"
                   radius={[3, 3, 0, 0]}
                 />
               </BarChart>
@@ -185,8 +185,8 @@ export function ProgressPage() {
               <AreaChart data={chart}>
                 <defs>
                   <linearGradient id="growth" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#a8b1ff" stopOpacity={0.5} />
-                    <stop offset="100%" stopColor="#a8b1ff" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#8bd8bf" stopOpacity={0.5} />
+                    <stop offset="100%" stopColor="#8bd8bf" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid
@@ -212,7 +212,7 @@ export function ProgressPage() {
                   type="monotone"
                   dataKey="growth"
                   name="Слов"
-                  stroke="#6878ed"
+                  stroke="#48b996"
                   fill="url(#growth)"
                   strokeWidth={2}
                 />
@@ -242,7 +242,7 @@ export function ProgressPage() {
                 <Bar
                   dataKey="minutes"
                   name="Минуты"
-                  fill="#8491f5"
+                  fill="#76cdb0"
                   radius={[5, 5, 0, 0]}
                 />
               </BarChart>

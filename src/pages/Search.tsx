@@ -2,13 +2,60 @@ import { Link, useSearchParams } from "react-router-dom";
 import { PageHeading, Loading, Empty, SearchInput } from "../components/UI";
 import { useData } from "../hooks/useData";
 export function SearchPage() {
-  const data = useData();
+  const data = useData([
+    "drafts",
+    "collections",
+    "solutions",
+    "words",
+    "decks",
+    "texts",
+    "videos",
+  ]);
   const [params, setParams] = useSearchParams();
   const query = params.get("q") ?? "";
   if (!data) return <Loading />;
   const matches = (text: string) =>
     query.trim() && text.toLowerCase().includes(query.toLowerCase());
   const groups = [
+    {
+      title: "Черновики",
+      items: data.drafts
+        .filter((d) =>
+          matches(
+            `${d.title} ${d.description} ${d.cards.map((c) => c.term).join(" ")}`,
+          ),
+        )
+        .map((d) => ({
+          id: d.id,
+          title: d.title || "Черновик",
+          subtitle: "Продолжить редактирование",
+          path: `/${d.id}/autosaved`,
+        })),
+    },
+    {
+      title: "Папки и модули",
+      items: data.collections
+        .filter(
+          (c) => c.kind !== "class" && matches(`${c.title} ${c.description}`),
+        )
+        .map((c) => ({
+          id: c.id,
+          title: c.title,
+          subtitle: c.kind === "course" ? "Модуль" : "Папка",
+          path: `/${c.kind === "course" ? "modules" : "folders"}/${c.id}`,
+        })),
+    },
+    {
+      title: "Решения",
+      items: data.solutions
+        .filter((s) => matches(`${s.title} ${s.question} ${s.answer}`))
+        .map((s) => ({
+          id: s.id,
+          title: s.title,
+          subtitle: s.question,
+          path: `/solutions/${s.id}`,
+        })),
+    },
     {
       title: "Слова",
       items: data.words
@@ -30,7 +77,7 @@ export function SearchPage() {
           id: d.id,
           title: d.title,
           subtitle: d.description,
-          path: `/decks/${d.id}`,
+          path: `/sets/${d.id}`,
         })),
     },
     {

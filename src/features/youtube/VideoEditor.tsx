@@ -1,8 +1,10 @@
+import { useSubjectNames } from "../../hooks/useSubjectNames";
+import { AutoTextarea } from "../../components/AutoTextarea";
 import { useState, type FormEvent } from "react";
 import type { Video } from "../../types";
 import { Modal } from "../../components/UI";
 import { useSettings } from "../../store/useSettings";
-import { languages, uid } from "../../utils/format";
+import { uid } from "../../utils/format";
 import { VideoRepository } from "../../services/repositories";
 import { parseSubtitles, youtubeId } from "./subtitles";
 export function VideoEditor({
@@ -12,6 +14,7 @@ export function VideoEditor({
   video?: Video;
   onClose: () => void;
 }) {
+  const languages = useSubjectNames();
   const [v, setV] = useState<Video>(
     video ?? {
       id: uid(),
@@ -116,7 +119,7 @@ export function VideoEditor({
         </label>
         <label>
           Субтитры SRT, VTT или JSON
-          <textarea
+          <AutoTextarea
             rows={8}
             value={subtitles}
             onChange={(e) => setSubtitles(e.target.value)}

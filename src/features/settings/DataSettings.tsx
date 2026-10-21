@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, Upload, Bell } from "lucide-react";
+import { Download, Upload } from "lucide-react";
 import { Modal, Confirm } from "../../components/UI";
 import {
   createBackup,
@@ -9,25 +9,23 @@ import {
 } from "../../services/backup";
 import { download, vocabularyCSV } from "../../services/csv";
 import { clearData } from "../../services/repositories";
-import { loadDemo, removeDemo } from "../../services/demo";
 import { useData } from "../../hooks/useData";
-import { defaultSettings, useSettings } from "../../store/useSettings";
+import { defaultSettings } from "../../store/settingsDefaults";
+import { useSettings } from "../../store/useSettings";
 import { perform, reportError } from "../../store/useUI";
-import { reminders } from "../../services/notifications";
 export function DataSettings() {
-  const data = useData();
+  const data = useData(["words"]);
   const [clear, setClear] = useState(false);
-  const [demoRemove, setDemoRemove] = useState(false);
   const [backup, setBackup] = useState<Backup | null>(null);
   const [busy, setBusy] = useState(false);
-  const { settings, update } = useSettings();
+  const { update } = useSettings();
   return (
     <>
       <section className="panel">
         <h2>Ваши данные</h2>
         <p className="hint">
-          Вся библиотека хранится локально в IndexedDB. Сохраните резервную
-          копию перед сменой браузера или устройства.
+          Библиотека хранится в этом браузере. Сохраните резервную копию перед
+          сменой браузера или устройства.
         </p>
         <div className="data-actions">
           <button
@@ -82,55 +80,6 @@ export function DataSettings() {
           Удалить все данные
         </button>
       </section>
-      <section className="panel">
-        <h2>Попробовать на примере</h2>
-        <p className="hint">
-          12 немецких слов, колода и оригинальный учебный текст. Ваши
-          существующие слова не заменяются.
-        </p>
-        <div className="data-actions">
-          <button
-            className="button secondary"
-            onClick={() =>
-              void perform(loadDemo, "Учебная коллекция добавлена")
-            }
-          >
-            Добавить примеры
-          </button>
-          <button
-            className="button secondary"
-            onClick={() => setDemoRemove(true)}
-          >
-            Удалить примеры
-          </button>
-        </div>
-        <h2 style={{ marginTop: 30 }}>Уведомления</h2>
-        <p className="hint">
-          Необязательное напоминание по вашему запросу. Без фоновых уведомлений
-          и расписания.
-        </p>
-        <button
-          className="button secondary"
-          onClick={() =>
-            void perform(async () => {
-              const enabled = await reminders.enable();
-              update({ notifications: enabled });
-              if (!enabled)
-                throw new Error("Разрешение на уведомления не предоставлено");
-              reminders.showDue(
-                data?.words.filter(
-                  (w) => w.status !== "ignored" && w.nextReviewAt <= Date.now(),
-                ).length ?? 0,
-              );
-            }, "Настройка уведомлений сохранена")
-          }
-        >
-          <Bell size={15} />
-          {settings.notifications
-            ? "Напомнить о повторении"
-            : "Включить уведомления"}
-        </button>
-      </section>
       {clear && (
         <Confirm
           title="Удалить всю библиотеку?"
@@ -142,19 +91,6 @@ export function DataSettings() {
               update(defaultSettings);
               setClear(false);
             }, "Все данные удалены")
-          }
-        />
-      )}
-      {demoRemove && (
-        <Confirm
-          title="Удалить учебные примеры?"
-          description="Будут удалены только демонстрационные слова, колода и текст. Слова, которые вы добавили самостоятельно, останутся."
-          onClose={() => setDemoRemove(false)}
-          onConfirm={() =>
-            void perform(async () => {
-              await removeDemo();
-              setDemoRemove(false);
-            }, "Учебные примеры удалены")
           }
         />
       )}

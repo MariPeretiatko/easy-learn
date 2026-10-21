@@ -1,12 +1,8 @@
 import "fake-indexeddb/auto";
 import { beforeEach, it, expect } from "vitest";
 import { db } from "../db/database";
-import {
-  clearData,
-  newWord,
-  WordRepository,
-  TextRepository,
-} from "./repositories";
+import { newWord } from "./wordModel";
+import { clearData, WordRepository, TextRepository } from "./repositories";
 import { createBackup, parseBackup, restoreBackup } from "./backup";
 beforeEach(async () => {
   await clearData();
@@ -23,9 +19,9 @@ it("saves a source word and its automatic deck atomically", async () => {
   const decks = await db.decks.toArray();
   expect(decks).toHaveLength(1);
   expect(decks[0].wordIds).toEqual([word.id]);
-  await expect(
-    WordRepository.save(newWord({ term: "kaffee", translation: "кофе" })),
-  ).rejects.toThrow("уже есть");
+  expect(
+    await WordRepository.save(newWord({ term: "kaffee", translation: "кофе" })),
+  ).toBe(word.id);
   expect(await db.words.count()).toBe(1);
 });
 it("rolls back a save when the chosen deck has the wrong language", async () => {
