@@ -1,7 +1,8 @@
+import { registerFlush, trackWrite } from "../../services/pendingWrites";
 import { DraftRepository } from "../../services/drafts";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { db } from "../../db/database";
+import { currentDatabase } from "../../db/database";
 import type { SetCard, SetDraft } from "../../types";
 import { uid } from "../../utils/format";
 import { useSettings } from "../../store/useSettings";
@@ -9,6 +10,7 @@ import { useUI } from "../../store/useUI";
 import { editSetDraft, publishDraft } from "../../services/sets";
 import { blankCard } from "./editorModel";
 export function useSetDraft() {
+  const [draftDatabase] = useState(currentDatabase);
   const { id } = useParams();
   const [generatedId] = useState(uid);
   const draftId = id ?? generatedId;
@@ -23,9 +25,11 @@ export function useSetDraft() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const enqueue = (value: SetDraft) => {
-    writes.current = writes.current
-      .catch(() => undefined)
-      .then(() => DraftRepository.save(value));
+    writes.current = trackWrite(
+      writes.current
+        .catch(() => undefined)
+        .then(() => draftDatabase.drafts.put(value)),
+    );
     return writes.current;
   };
   useEffect(() => {
@@ -33,8 +37,10 @@ export function useSetDraft() {
     let active = true;
     published.current = false;
     void (async () => {
-      const stored = await DraftRepository.get(draftId);
-      if (!stored && (await db.decks.get(draftId))) {
+      const stored = await draftDatabase.drafts.get(draftId);
+      if (!active) return;
+      if (!stored && (await draftDatabase.decks.get(draftId))) {
+        if (!active) return;
         const editId = await editSetDraft(draftId);
         if (active) navigate(`/${editId}/autosaved`, { replace: true });
         return;
@@ -90,13 +96,19 @@ export function useSetDraft() {
   useEffect(() => {
     const flush = () => {
       clearTimeout(timer.current);
-      if (latest.current && !published.current)
-        void enqueue(latest.current).catch(() => undefined);
+      return latest.current && !published.current
+        ? enqueue(latest.current)
+        : writes.current;
     };
-    window.addEventListener("pagehide", flush);
+    const unregister = registerFlush(flush);
+    const onPageHide = () => {
+      void flush().catch(() => undefined);
+    };
+    window.addEventListener("pagehide", onPageHide);
     return () => {
-      window.removeEventListener("pagehide", flush);
-      flush();
+      unregister();
+      window.removeEventListener("pagehide", onPageHide);
+      onPageHide();
     };
   }, []);
   const patch = (value: Partial<SetDraft>) =>
@@ -129,8 +141,10 @@ export function useSetDraft() {
     clearTimeout(timer.current);
     published.current = true;
     try {
-      await writes.current;
+      await enqueue(draft);
+      if (currentDatabase() !== draftDatabase) return;
       const deckId = await publishDraft(draft);
+      if (currentDatabase() !== draftDatabase) return;
       useSettings.getState().update({ learningLanguage: draft.language });
       useUI.getState().toast("Колода сохранена");
       navigate(

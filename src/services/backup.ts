@@ -1,6 +1,8 @@
+import { markRestore } from "../db/syncMiddleware";
 import { validateSubjects } from "./subjectValidation";
 import { languages } from "../utils/format";
-import { db } from "../db/database";
+import { db, currentDatabase, type LearningDatabase } from "../db/database";
+import { dataTables } from "../cloud/types";
 import type {
   Word,
   Deck,
@@ -342,6 +344,18 @@ export function parseBackup(text: string): Backup {
     )
       throw new Error("Некорректная история");
   }
+  for (const word of words) {
+    const manual = word.manualProgress;
+    if (
+      manual &&
+      (!Number.isFinite(manual.at) ||
+        !Number.isFinite(manual.nextReviewAt) ||
+        !["new", "learning", "review", "mastered", "ignored"].includes(
+          manual.status,
+        ))
+    )
+      throw new Error("Некорректное ручное состояние карточки");
+  }
   const ids = new Set(words.map((w) => w.id));
   for (const d of raw.decks as unknown as Deck[])
     if (d.wordIds.some((id) => !ids.has(id)))
@@ -385,7 +399,11 @@ export function parseBackup(text: string): Backup {
     throw new Error("Некорректные рекорды");
   return { ...raw, words, settings } as unknown as Backup;
 }
-export async function createBackup(): Promise<Backup> {
+export async function createBackup(
+  database: LearningDatabase = db,
+  settings = useSettings.getState().settings,
+): Promise<Backup> {
+  const db = database;
   return db.transaction("r", db.tables, async () => ({
     version: 1 as const,
     exportedAt: new Date().toISOString(),
@@ -393,10 +411,12 @@ export async function createBackup(): Promise<Backup> {
     decks: await db.decks.toArray(),
     texts: await db.texts.toArray(),
     videos: await db.videos.toArray(),
-    reviews: await db.reviews.toArray(),
+    reviews: (await db.reviews.toArray()).map(
+      ({ baseline: _baseline, ...review }) => review,
+    ),
     statistics: await db.statistics.toArray(),
     recent: await db.recent.toArray(),
-    settings: useSettings.getState().settings,
+    settings,
     drafts: await db.drafts.toArray(),
     collections: await db.collections.toArray(),
     solutions: await db.solutions.toArray(),
@@ -404,14 +424,32 @@ export async function createBackup(): Promise<Backup> {
   }));
 }
 export async function restoreBackup(backup: Backup) {
+  const database = currentDatabase();
+  const db = database;
   const validated = parseBackup(JSON.stringify(backup));
-  await db.transaction("rw", db.tables, async () => {
-    for (const table of db.tables) await table.clear();
+  await db.transaction("rw", db.tables, async (tx) => {
+    markRestore(tx.idbtrans);
+    for (const table of db.tables.filter((table) =>
+      (dataTables as readonly string[]).includes(table.name),
+    ))
+      await table.clear();
+    if (db.owner)
+      await db.syncMeta.put({
+        key: "statisticsBaseline",
+        value: validated.statistics,
+      });
+    if (db.owner)
+      await db.preferences.put({
+        id: "statisticsBaseline",
+        value: validated.statistics,
+      });
     await db.words.bulkPut(validated.words);
     await db.decks.bulkPut(validated.decks);
     await db.texts.bulkPut(validated.texts);
     await db.videos.bulkPut(validated.videos);
-    await db.reviews.bulkPut(validated.reviews);
+    await db.reviews.bulkPut(
+      validated.reviews.map(({ baseline: _baseline, ...review }) => review),
+    );
     await db.statistics.bulkPut(validated.statistics);
     await db.recent.bulkPut(validated.recent);
     await db.drafts.bulkPut(validated.drafts);
@@ -419,5 +457,6 @@ export async function restoreBackup(backup: Backup) {
     await db.solutions.bulkPut(validated.solutions);
     await db.testResults.bulkPut(validated.testResults);
   });
-  useSettings.getState().update(validated.settings);
+  if (currentDatabase() === database)
+    useSettings.getState().update(validated.settings);
 }

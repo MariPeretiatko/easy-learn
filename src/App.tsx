@@ -79,12 +79,33 @@ const GamesPage = lazy(() =>
   import("./pages/Games").then((module) => ({ default: module.GamesPage })),
 );
 import { Empty } from "./components/UI";
+import { AuthPage } from "./features/auth/AuthPage";
 export function App() {
   return (
     <BrowserRouter>
       <Suspense fallback={<Loading />}>
         <Routes>
           <Route element={<AppLayout />}>
+            <Route
+              path="login"
+              element={<AuthPage key="login" mode="login" />}
+            />
+            <Route
+              path="register"
+              element={<AuthPage key="register" mode="register" />}
+            />
+            <Route
+              path="forgot-password"
+              element={<AuthPage key="forgot" mode="forgot-password" />}
+            />
+            <Route
+              path="reset-password"
+              element={<AuthPage key="reset" mode="reset-password" />}
+            />
+            <Route
+              path="auth/callback"
+              element={<AuthPage key="callback" mode="callback" />}
+            />
             <Route index element={<Dashboard />} />
             <Route path="latest" element={<Dashboard />} />
             <Route path="library" element={<LibraryPage />} />

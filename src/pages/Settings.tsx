@@ -1,3 +1,4 @@
+import { AccountPanel } from "../features/auth/AccountPanel";
 import { useSubjectNames } from "../hooks/useSubjectNames";
 import { useSettings } from "../store/useSettings";
 
@@ -18,6 +19,7 @@ export function SettingsPage() {
         description="Основные параметры обучения и ваша библиотека."
       />
       <div className="settings-grid">
+        <AccountPanel />
         <section className="panel">
           <h2>Обучение</h2>
           <label>

@@ -9,7 +9,7 @@
 - `src/components/` contains shared UI contracts, including native dialogs, auto-growing textareas and explicit answer alternatives. A domain-specific component belongs in its feature.
 - `src/services/` owns data-changing commands. Sets, collection membership, vocabulary imports, drafts, solutions, review scheduling and backups have explicit entry points. `wordModel` and subject validation are independent of React and database state.
 - `src/hooks/useData.ts` requires the exact tables a screen consumes. Do not restore a global subscription to every table. `useSetData` reads a deck's word IDs with `bulkGet`; the set page does not load the whole vocabulary.
-- `src/store/` separates persisted settings, defaults/legacy migration and transient UI state. Settings are browser-local; no authenticated identity is implied.
+- `src/store/` separates persisted settings, defaults/legacy migration and transient UI state. Guest settings are browser-local; account settings are isolated by user and mirrored to cloud preferences. Auth identity lives in `src/cloud/auth.ts`.
 - `src/styles/main.css` defines the cascade order. CSS is native and divided into foundation, controls, feature surfaces and responsive layout. Add styles in the responsible file; check both themes and narrow screens.
 
 ## Data invariants
@@ -34,4 +34,6 @@ Use meaningful behavior checks: rollback, card reuse, migration, answer rules, a
 
 ## Future cloud integration
 
-Supabase/Auth is a separate implementation. It requires ownership, isolation of local accounts, an offline mutation queue, idempotent review events, deletion propagation and conflict handling. Do not turn `useData` into direct network calls or upload the entire browser database on each answer. Preserve the command boundaries and distinguish shared catalog content from personal learning progress.
+Supabase/Auth lives in `src/cloud/`, with SQL and RLS in `supabase/`. `src/db/syncMiddleware.ts` captures application writes and the outbox in the same native IndexedDB transaction, including nested service transactions. Account bootstrap and incoming cloud changes use `localOnly`; they must never enqueue themselves. Ownership, account isolation, idempotent event delivery, tombstones and conflicts are integration contracts. Do not turn `useData` into direct network calls or upload the entire browser database on each answer. Preserve the command boundaries and distinguish shared catalog content from personal learning progress.
+
+Cloud rules and the write map: [docs/CLOUD_DATA_RULES.md](docs/CLOUD_DATA_RULES.md). Setup and checks: [docs/CLOUD_SETUP.md](docs/CLOUD_SETUP.md).

@@ -11,6 +11,7 @@ export type Rating = "again" | "hard" | "good" | "easy";
 export type EntryType =
   "word" | "phrase" | "idiom" | "collocation" | "phrasal verb" | "sentence";
 export interface Word {
+  manualProgress?: { at: number; status: WordStatus; nextReviewAt: number };
   id: string;
   term: string;
   image?: string;
@@ -101,6 +102,8 @@ export interface Video {
   favorite: boolean;
 }
 export interface ReviewHistory {
+  baseline?: Word;
+  deckId?: string;
   id: string;
   wordId: string;
   result: Rating;

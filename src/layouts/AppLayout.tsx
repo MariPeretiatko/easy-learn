@@ -1,3 +1,4 @@
+import { CloudStatus } from "../features/auth/CloudStatus";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   Home,
@@ -190,6 +191,7 @@ export function AppLayout() {
       </aside>
       <div className="workspace">
         <OfflineStatus />
+        <CloudStatus />
         <main className="main-content">
           <Outlet />
         </main>

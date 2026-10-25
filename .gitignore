@@ -6,3 +6,10 @@ playwright-report/
 .env*
 !.env.example
 *.log
+
+dist-cloud/
+supabase/.temp/
+supabase/.branches/
+test-results-cloud/
+
+artifacts/setup/

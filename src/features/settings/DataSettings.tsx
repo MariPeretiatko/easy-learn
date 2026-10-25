@@ -1,3 +1,5 @@
+import { currentDatabase } from "../../db/database";
+import { useAccount } from "../../cloud/auth";
 import { useState } from "react";
 import { Download, Upload } from "lucide-react";
 import { Modal, Confirm } from "../../components/UI";
@@ -14,6 +16,8 @@ import { defaultSettings } from "../../store/settingsDefaults";
 import { useSettings } from "../../store/useSettings";
 import { perform, reportError } from "../../store/useUI";
 export function DataSettings() {
+  const database = currentDatabase();
+  const user = useAccount((s) => s.user);
   const data = useData(["words"]);
   const [clear, setClear] = useState(false);
   const [backup, setBackup] = useState<Backup | null>(null);
@@ -24,8 +28,9 @@ export function DataSettings() {
       <section className="panel">
         <h2>Ваши данные</h2>
         <p className="hint">
-          Библиотека хранится в этом браузере. Сохраните резервную копию перед
-          сменой браузера или устройства.
+          {user
+            ? "Библиотека хранится на устройстве и синхронизируется с вашим аккаунтом. Проверяйте статус синхронизации перед сменой устройства. Восстановление JSON заменяет библиотеку этого аккаунта, включая облачную копию после синхронизации."
+            : "Библиотека хранится в этом браузере. Сохраните резервную копию перед сменой браузера или устройства."}
         </p>
         <div className="data-actions">
           <button
@@ -82,13 +87,15 @@ export function DataSettings() {
       </section>
       {clear && (
         <Confirm
-          title="Удалить всю библиотеку?"
+          title={
+            user ? "Удалить библиотеку аккаунта?" : "Удалить всю библиотеку?"
+          }
           description="Будут удалены слова, колоды, тексты, видео, история и настройки. Это действие нельзя отменить. Сначала экспортируйте резервную копию."
           onClose={() => setClear(false)}
           onConfirm={() =>
             void perform(async () => {
               await clearData();
-              update(defaultSettings);
+              if (currentDatabase() === database) update(defaultSettings);
               setClear(false);
             }, "Все данные удалены")
           }

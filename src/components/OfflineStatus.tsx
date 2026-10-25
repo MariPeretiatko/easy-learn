@@ -1,3 +1,6 @@
+import { flushPendingWrites } from "../services/pendingWrites";
+import { currentDatabase } from "../db/database";
+import { perform } from "../store/useUI";
 import { useEffect, useState } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { Download, WifiOff } from "lucide-react";
@@ -55,7 +58,20 @@ export function OfflineStatus() {
       {needRefresh && (
         <div className="update-banner">
           <span>Доступна новая версия. Сохраните открытые изменения.</span>
-          <button onClick={() => void updateServiceWorker(true)}>
+          <button
+            onClick={() =>
+              void perform(async () => {
+                await flushPendingWrites();
+                const database = currentDatabase();
+                await database.transaction(
+                  "rw",
+                  database.tables,
+                  async () => undefined,
+                );
+                await updateServiceWorker(true);
+              })
+            }
+          >
             Обновить
           </button>
           <button onClick={() => setNeedRefresh(false)}>Позже</button>

@@ -1,4 +1,6 @@
+import Dexie from "dexie";
 import { db } from "../db/database";
+import { markReview } from "../db/syncMiddleware";
 import { trackActivity } from "./repositories";
 import { uid } from "../utils/format";
 import type { Rating, Word } from "../types";
@@ -11,11 +13,15 @@ export async function recordReview(
 ) {
   await db.transaction(
     "rw",
-    db.words,
-    db.reviews,
-    db.statistics,
-    db.decks,
+    [
+      db.words,
+      db.reviews,
+      db.statistics,
+      db.decks,
+      ...(db.owner ? [db.activity] : []),
+    ],
     async () => {
+      if (db.owner) markReview(Dexie.currentTransaction!.idbtrans);
       const current = await db.words.get(word.id);
       if (!current) throw new Error("Слово больше не существует");
       const correct = result !== "again";
@@ -27,7 +33,19 @@ export async function recordReview(
         lastReviewedAt: Date.now(),
         updatedAt: Date.now(),
       });
+      const previousEvents = await db.reviews
+        .where("wordId")
+        .equals(word.id)
+        .toArray();
+      const baseline =
+        previousEvents.find((event) => event.baseline)?.baseline ?? current;
       await db.reviews.add({
+        ...(db.owner
+          ? {
+              baseline: { ...baseline, image: undefined, termImage: undefined },
+              deckId,
+            }
+          : {}),
         id: uid(),
         wordId: word.id,
         result,
@@ -60,7 +78,13 @@ export async function recordReviews(
     Math.max(1, assessments.length);
   await db.transaction(
     "rw",
-    [db.words, db.reviews, db.statistics, db.decks],
+    [
+      db.words,
+      db.reviews,
+      db.statistics,
+      db.decks,
+      ...(db.owner ? [db.activity] : []),
+    ],
     async () => {
       for (const { word, correct } of assessments)
         await recordReview(

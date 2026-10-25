@@ -1,3 +1,4 @@
+import { dataTables } from "../cloud/types";
 import { wordIdentity } from "./wordModel";
 import { db } from "../db/database";
 import type {
@@ -22,12 +23,23 @@ export const emptyDay = (date = dateKey()): DailyStatistics => ({
 export async function trackActivity(
   patch: Partial<Omit<DailyStatistics, "date">>,
 ) {
-  await db.transaction("rw", db.statistics, async () => {
-    const day = (await db.statistics.get(dateKey())) ?? emptyDay();
-    for (const key of Object.keys(patch) as (keyof typeof patch)[])
-      day[key] += patch[key] ?? 0;
-    await db.statistics.put(day);
-  });
+  await db.transaction(
+    "rw",
+    [db.statistics, ...(db.owner ? [db.activity] : [])],
+    async () => {
+      if (db.owner)
+        await db.activity.add({
+          id: uid(),
+          date: dateKey(),
+          patch,
+          timestamp: Date.now(),
+        });
+      const day = (await db.statistics.get(dateKey())) ?? emptyDay();
+      for (const key of Object.keys(patch) as (keyof typeof patch)[])
+        day[key] += patch[key] ?? 0;
+      await db.statistics.put(day);
+    },
+  );
 }
 export async function matchingWord(
   word: Pick<Word, "language" | "nativeLanguage" | "term" | "translation">,
@@ -47,59 +59,72 @@ export const WordRepository = {
   async save(word: Word, deckId?: string) {
     if (!word.term.trim() || !word.translation.trim())
       throw new Error("Введите слово и перевод");
-    return db.transaction("rw", db.words, db.decks, db.statistics, async () => {
-      const exists = await db.words.get(word.id);
-      const duplicate = await matchingWord(word, word.id);
-      if (exists && duplicate && wordIdentity(exists) !== wordIdentity(word))
-        throw new Error(
-          "Такая карточка уже есть в словаре. Используйте существующую карточку.",
-        );
-      if (exists && exists.language !== word.language) {
-        const linked = await db.decks
-          .filter((deck) => deck.wordIds.includes(word.id))
-          .count();
-        if (linked)
+    return db.transaction(
+      "rw",
+      [db.words, db.decks, db.statistics, ...(db.owner ? [db.activity] : [])],
+      async () => {
+        const exists = await db.words.get(word.id);
+        const duplicate = await matchingWord(word, word.id);
+        if (exists && duplicate && wordIdentity(exists) !== wordIdentity(word))
           throw new Error(
-            "Язык общей карточки нельзя менять, пока она используется в колодах.",
+            "Такая карточка уже есть в словаре. Используйте существующую карточку.",
           );
-      }
-      const reuse = !exists ? duplicate : undefined;
-      const saved = reuse ?? {
-        ...word,
-        term: word.term.trim(),
-        translation: word.translation.trim(),
-        updatedAt: Date.now(),
-      };
-      if (!reuse) await db.words.put(saved);
-      if (!exists && !duplicate) await trackActivity({ wordsAdded: 1 });
-      let targetDeck = deckId;
-      if (!targetDeck && !exists && word.sourceId && word.sourceTitle) {
-        targetDeck = `source-${word.language}-${word.sourceId}`;
-        if (!(await db.decks.get(targetDeck)))
-          await db.decks.add({
-            id: targetDeck,
-            title: word.sourceTitle,
-            description: "Слова, сохранённые из этого источника.",
-            language: word.language,
-            tags: [word.sourceType === "video" ? "видео" : "чтение"],
-            wordIds: [],
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-            favorite: false,
-          });
-      }
-      if (targetDeck) {
-        const deck = await db.decks.get(targetDeck);
-        if (!deck || deck.language !== saved.language)
-          throw new Error("Выберите колоду на языке слова");
-        if (!deck.wordIds.includes(saved.id))
-          await db.decks.update(targetDeck, {
-            wordIds: [...deck.wordIds, saved.id],
-            updatedAt: Date.now(),
-          });
-      }
-      return saved.id;
-    });
+        if (exists && exists.language !== word.language) {
+          const linked = await db.decks
+            .filter((deck) => deck.wordIds.includes(word.id))
+            .count();
+          if (linked)
+            throw new Error(
+              "Язык общей карточки нельзя менять, пока она используется в колодах.",
+            );
+        }
+        const reuse = !exists ? duplicate : undefined;
+        const saved = reuse ?? {
+          ...word,
+          ...(exists && exists.status !== word.status
+            ? {
+                manualProgress: {
+                  at: Date.now(),
+                  status: word.status,
+                  nextReviewAt: word.nextReviewAt,
+                },
+              }
+            : {}),
+          term: word.term.trim(),
+          translation: word.translation.trim(),
+          updatedAt: Date.now(),
+        };
+        if (!reuse) await db.words.put(saved);
+        if (!exists && !duplicate) await trackActivity({ wordsAdded: 1 });
+        let targetDeck = deckId;
+        if (!targetDeck && !exists && word.sourceId && word.sourceTitle) {
+          targetDeck = `source-${word.language}-${word.sourceId}`;
+          if (!(await db.decks.get(targetDeck)))
+            await db.decks.add({
+              id: targetDeck,
+              title: word.sourceTitle,
+              description: "Слова, сохранённые из этого источника.",
+              language: word.language,
+              tags: [word.sourceType === "video" ? "видео" : "чтение"],
+              wordIds: [],
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+              favorite: false,
+            });
+        }
+        if (targetDeck) {
+          const deck = await db.decks.get(targetDeck);
+          if (!deck || deck.language !== saved.language)
+            throw new Error("Выберите колоду на языке слова");
+          if (!deck.wordIds.includes(saved.id))
+            await db.decks.update(targetDeck, {
+              wordIds: [...deck.wordIds, saved.id],
+              updatedAt: Date.now(),
+            });
+        }
+        return saved.id;
+      },
+    );
   },
   async delete(ids: string[]) {
     await db.transaction(
@@ -121,7 +146,23 @@ export const WordRepository = {
     );
   },
   async patch(id: string, patch: Partial<Word>) {
-    await db.words.update(id, { ...patch, updatedAt: Date.now() });
+    await db.transaction("rw", db.words, async () => {
+      const current = await db.words.get(id);
+      if (!current) throw new Error("Слово больше не существует");
+      const manualProgress =
+        patch.status !== undefined || patch.nextReviewAt !== undefined
+          ? {
+              at: Date.now(),
+              status: patch.status ?? current.status,
+              nextReviewAt: patch.nextReviewAt ?? current.nextReviewAt,
+            }
+          : current.manualProgress;
+      await db.words.update(id, {
+        ...patch,
+        manualProgress,
+        updatedAt: Date.now(),
+      });
+    });
   },
   async move(ids: string[], deckId: string) {
     await db.transaction("rw", db.decks, db.words, async () => {
@@ -210,6 +251,13 @@ export async function remember(
 }
 export async function clearData() {
   await db.transaction("rw", db.tables, async () => {
-    for (const table of db.tables) await table.clear();
+    for (const table of db.tables.filter((table) =>
+      (dataTables as readonly string[]).includes(table.name),
+    ))
+      await table.clear();
+    if (db.owner)
+      await db.syncMeta.put({ key: "statisticsBaseline", value: [] });
+    if (db.owner)
+      await db.preferences.put({ id: "statisticsBaseline", value: [] });
   });
 }

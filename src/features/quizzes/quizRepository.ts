@@ -13,7 +13,14 @@ export async function saveTestAttempt(
   const id = uid();
   await db.transaction(
     "rw",
-    [db.words, db.reviews, db.statistics, db.decks, db.testResults],
+    [
+      db.words,
+      db.reviews,
+      db.statistics,
+      db.decks,
+      db.testResults,
+      ...(db.owner ? [db.activity] : []),
+    ],
     async () => {
       await recordReviews(answers.flatMap(assessmentsFor), elapsed, deckId);
       await db.testResults.add({

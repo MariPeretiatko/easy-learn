@@ -12,10 +12,13 @@ export async function publishDraft(draft: SetDraft) {
   const id = draft.sourceDeckId ?? draft.id;
   await db.transaction(
     "rw",
-    db.words,
-    db.decks,
-    db.statistics,
-    db.drafts,
+    [
+      db.words,
+      db.decks,
+      db.statistics,
+      db.drafts,
+      ...(db.owner ? [db.activity] : []),
+    ],
     async () => {
       const existing = await db.decks.get(id);
       if (existing && existing.language !== draft.language)
@@ -98,41 +101,46 @@ export async function publishDraft(draft: SetDraft) {
   return id;
 }
 export async function editSetDraft(deckId: string) {
-  const previous = await db.drafts.where("sourceDeckId").equals(deckId).first();
-  if (previous) return previous.id;
-  const deck = await db.decks.get(deckId);
-  if (!deck) throw new Error("Колода не найдена");
-  const words = await db.words.bulkGet(deck.wordIds);
-  const draft: SetDraft = {
-    id: uid(),
-    sourceDeckId: deck.id,
-    title: deck.title,
-    description: deck.description,
-    language: deck.language,
-    nativeLanguage: words.find((word) => word)?.nativeLanguage ?? "ru",
-    cards: words.flatMap((word) =>
-      word
-        ? [
-            {
-              id: uid(),
-              wordId: word.id,
-              term: word.term,
-              definition: word.translation,
-              acceptedTerms: word.acceptedTerms,
-              acceptedTranslations: word.acceptedTranslations,
-              image: word.image,
-              termImage: word.termImage,
-              bold: word.bold,
-              italic: word.italic,
-              underline: word.underline,
-              highlight: word.highlight,
-            },
-          ]
-        : [],
-    ),
-    createdAt: deck.createdAt,
-    updatedAt: Date.now(),
-  };
-  await db.drafts.put(draft);
-  return draft.id;
+  return db.transaction("rw", [db.drafts, db.decks, db.words], async () => {
+    const previous = await db.drafts
+      .where("sourceDeckId")
+      .equals(deckId)
+      .first();
+    if (previous) return previous.id;
+    const deck = await db.decks.get(deckId);
+    if (!deck) throw new Error("Колода не найдена");
+    const words = await db.words.bulkGet(deck.wordIds);
+    const draft: SetDraft = {
+      id: uid(),
+      sourceDeckId: deck.id,
+      title: deck.title,
+      description: deck.description,
+      language: deck.language,
+      nativeLanguage: words.find((word) => word)?.nativeLanguage ?? "ru",
+      cards: words.flatMap((word) =>
+        word
+          ? [
+              {
+                id: uid(),
+                wordId: word.id,
+                term: word.term,
+                definition: word.translation,
+                acceptedTerms: word.acceptedTerms,
+                acceptedTranslations: word.acceptedTranslations,
+                image: word.image,
+                termImage: word.termImage,
+                bold: word.bold,
+                italic: word.italic,
+                underline: word.underline,
+                highlight: word.highlight,
+              },
+            ]
+          : [],
+      ),
+      createdAt: deck.createdAt,
+      updatedAt: Date.now(),
+    };
+    await db.drafts.put(draft);
+    return draft.id;
+  });
 }

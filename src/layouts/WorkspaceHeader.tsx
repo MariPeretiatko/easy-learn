@@ -1,3 +1,5 @@
+import { useAccount, signOut } from "../cloud/auth";
+import { perform } from "../store/useUI";
 import { useSubjectNames } from "../hooks/useSubjectNames";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -24,6 +26,7 @@ export function WorkspaceHeader({
   onMenu: () => void;
   menuOpen: boolean;
 }) {
+  const user = useAccount((s) => s.user);
   const languages = useSubjectNames();
   const [addingSubject, setAddingSubject] = useState(false);
   const [dropdown, setDropdown] = useState<"create" | "profile" | null>(null);
@@ -173,9 +176,21 @@ export function WorkspaceHeader({
           {dropdown === "profile" && (
             <div className="header-dropdown profile-dropdown">
               <div className="profile-heading">
-                <strong>{settings.profileName ?? "Мой профиль"}</strong>
-                <small>Личное учебное пространство</small>
+                <strong>
+                  {settings.profileName ??
+                    user?.user_metadata.display_name ??
+                    "Мой профиль"}
+                </strong>
+                <small>{user?.email ?? "Локальное учебное пространство"}</small>
               </div>
+              {user ? (
+                <button onClick={() => void perform(signOut)}>Выйти</button>
+              ) : (
+                <>
+                  <Link to="/login">Войти</Link>
+                  <Link to="/register">Регистрация</Link>
+                </>
+              )}
               <Link to="/library">
                 <Folder size={18} />
                 Ваша библиотека

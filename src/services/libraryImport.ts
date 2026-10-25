@@ -113,7 +113,14 @@ export async function importLibrary(bundle: LibraryBundle) {
             const identity = wordIdentity(fields);
             let word = words.get(identity);
             if (!word) {
-              word = newWord(fields);
+              let hash1 = 2166136261,
+                hash2 = 5381;
+              for (const char of identity) {
+                hash1 = Math.imul(hash1 ^ char.charCodeAt(0), 16777619);
+                hash2 = Math.imul(hash2, 33) ^ char.charCodeAt(0);
+              }
+              const stableId = `catalog-${(hash1 >>> 0).toString(16).padStart(8, "0")}${(hash2 >>> 0).toString(16).padStart(8, "0")}`;
+              word = newWord({ ...fields, id: stableId });
               words.set(identity, word);
               added.push(word);
             }
@@ -159,23 +166,26 @@ export async function importLibrary(bundle: LibraryBundle) {
 
 export const organizedLibraryMarker =
   "easy-learn-import-deutsch-a1-a2-b1-ru-v2";
+export function libraryMarker(marker: string) {
+  return db.owner ? `${marker}:${db.owner}` : marker;
+}
 export async function importPreparedGermanLibrary() {
-  if (localStorage.getItem(organizedLibraryMarker)) return;
+  if (localStorage.getItem(libraryMarker(organizedLibraryMarker))) return;
   const { default: url } = await import("../data/deutsch-organized.json?url");
   const response = await fetch(url);
   if (!response.ok) throw new Error("Не удалось загрузить учебную библиотеку");
   const data: LibraryBundle = await response.json();
   if (
-    localStorage.getItem(germanLibraryMarker) ||
+    localStorage.getItem(libraryMarker(germanLibraryMarker)) ||
     (await db.decks.toArray()).some((deck) =>
       /^deutsch-[a-f0-9]{24}$/.test(deck.id),
     )
   ) {
     const { reorganizeGermanLibrary } = await import("./libraryReorganization");
-    await reorganizeGermanLibrary(data as LibraryBundle);
+    await db.localOnly(() => reorganizeGermanLibrary(data as LibraryBundle));
   } else {
-    await importLibrary(data as LibraryBundle);
+    await db.localOnly(() => importLibrary(data as LibraryBundle));
   }
-  localStorage.setItem(germanLibraryMarker, "done");
-  localStorage.setItem(organizedLibraryMarker, "done");
+  localStorage.setItem(libraryMarker(germanLibraryMarker), "done");
+  localStorage.setItem(libraryMarker(organizedLibraryMarker), "done");
 }

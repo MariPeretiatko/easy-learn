@@ -1,0 +1,13 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+select plan(8);
+select has_view('public', 'sync_records', 'Sync protocol view exists');
+select has_table('public', 'sync_receipts', 'Replay receipts exist');
+select ok((select relrowsecurity from pg_class where oid='public.sync_record_data'::regclass), 'RLS is enabled on records');
+select ok((select relrowsecurity from pg_class where oid='public.profiles'::regclass), 'RLS is enabled on profiles');
+select ok(has_table_privilege('authenticated','public.sync_records','SELECT'), 'Authenticated users can read through RLS');
+select ok(not has_table_privilege('authenticated','public.sync_records','INSERT'), 'Direct inserts cannot bypass atomic RPC');
+select ok(not has_function_privilege('anon','public.apply_sync_batch(uuid,jsonb)','EXECUTE'), 'Guests cannot execute mutation RPC');
+select ok(has_function_privilege('authenticated','public.apply_sync_batch(uuid,jsonb)','EXECUTE'), 'Authenticated users can execute mutation RPC');
+select * from finish();
+rollback;
