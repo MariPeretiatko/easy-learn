@@ -1,0 +1,333 @@
+.editor-shell .workspace {
+  padding-left: 0;
+}
+
+.editor-shell .study-sidebar {
+  display: none;
+}
+
+.editor-shell .main-content {
+  max-width: 1250px;
+}
+
+.autosave-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.autosave-status.saved {
+  color: var(--primary);
+}
+
+.set-editor-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  margin-bottom: 35px;
+}
+
+.set-editor-title h1 {
+  font-size: 29px;
+  margin: 0;
+}
+
+.set-editor-title > div {
+  display: flex;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.set-page-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.set-title-field,
+.set-description-field {
+  max-width: 800px;
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.set-title-field input,
+.set-description-field textarea {
+  background: var(--clone-row);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 6px;
+  font-size: 16px;
+  width: 100%;
+  padding: 17px !important;
+}
+
+.set-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--line);
+  padding-top: 22px;
+  margin: 25px 0;
+}
+
+.set-tools > div {
+  display: flex;
+  gap: 12px;
+}
+
+.set-tools .text-link {
+  font-size: 16px;
+}
+
+.editor-language-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  max-width: 900px;
+  margin-bottom: 24px;
+}
+
+.editor-language-row label {
+  display: flex;
+  flex-direction: row;
+  gap: 15px;
+  align-items: center;
+  font-size: 15px;
+  margin: 0;
+}
+
+.editor-language-row select {
+  font-size: 15px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  min-height: 35px;
+  padding: 6px;
+  max-width: 170px;
+}
+
+.editor-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 23px;
+}
+
+.editor-card {
+  border-radius: 9px;
+  background: var(--clone-row);
+  border: 1px solid transparent;
+}
+
+.editor-card.dragging {
+  opacity: 0.5;
+  border-style: dashed;
+  border-color: var(--primary);
+}
+
+.editor-card-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid color-mix(in srgb, var(--line), transparent 40%);
+  padding: 8px 21px;
+  color: var(--muted);
+  font-size: 16px;
+  position: relative;
+}
+
+.editor-card-bar > div {
+  display: flex;
+  gap: 4px;
+}
+
+.drag-grip {
+  cursor: grab;
+  position: absolute;
+  left: calc(50% - 10px);
+  display: flex;
+}
+
+.editor-card-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr 100px;
+  gap: 30px;
+  padding: 23px 25px 9px;
+}
+
+.editor-card-body > label {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+}
+
+.editor-card-body > label > span {
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.8px;
+}
+
+.editor-card-body textarea {
+  resize: vertical;
+  width: 100%;
+  min-height: 60px;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid var(--text);
+  padding: 7px 0 !important;
+  border-radius: 0;
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+.editor-card-body textarea:focus {
+  border-bottom-color: var(--primary);
+  outline: 0;
+}
+
+.editor-card-body textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.55;
+}
+
+.editor-image {
+  position: relative;
+  height: 80px;
+  width: 100px;
+  border: 1px dashed var(--muted);
+  border-radius: 3px;
+  align-self: center;
+}
+
+.editor-image > label {
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--muted);
+  margin: 0;
+}
+
+.editor-image input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+}
+
+.editor-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.editor-image > button {
+  position: absolute;
+  right: -9px;
+  top: -9px;
+  background: var(--bg);
+  padding: 4px;
+}
+
+.editor-format {
+  display: flex;
+  gap: 3px;
+  padding: 0 20px 13px;
+}
+
+.editor-format .icon-button {
+  border-radius: 5px;
+  padding: 7px;
+}
+
+.editor-format .selected {
+  background: var(--soft);
+  color: var(--primary);
+}
+
+.editor-add-card {
+  background: var(--clone-row);
+  color: var(--text);
+  border: 0;
+  border-radius: 8px;
+  padding: 33px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  font-size: 16px;
+  font-weight: 800;
+  width: 100%;
+  margin: 25px 0 35px;
+}
+
+.editor-add-card:hover {
+  box-shadow: inset 0 -4px var(--primary);
+}
+
+.editor-bottom-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+}
+
+.import-set-text {
+  width: 100%;
+  min-height: 180px;
+  margin-bottom: 22px;
+  font-size: 16px;
+}
+
+.file-import-label {
+  position: relative;
+  display: flex;
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--line);
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.file-import-label input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+}
+
+.import-preview {
+  background: var(--clone-row);
+  padding: 20px;
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+.import-preview > div {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+}
+
+.import-preview > strong {
+  display: block;
+  margin-bottom: 15px;
+}

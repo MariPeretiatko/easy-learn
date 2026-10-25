@@ -13,3 +13,5 @@ supabase/.branches/
 test-results-cloud/
 
 artifacts/setup/
+
+dist-e2e/

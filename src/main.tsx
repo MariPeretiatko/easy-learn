@@ -2,15 +2,14 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { CloudRoot } from "./cloud/CloudRoot";
 import "@fontsource-variable/comfortaa";
-import "./styles/main.css";
+import "./styles/base.css";
+import "./styles/controls.css";
+import "./styles/auth.css";
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <CloudRoot>
-        <App />
-      </CloudRoot>
+      <App />
     </ErrorBoundary>
   </React.StrictMode>,
 );

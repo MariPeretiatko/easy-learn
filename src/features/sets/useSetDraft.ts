@@ -1,5 +1,9 @@
 import { registerFlush, trackWrite } from "../../services/pendingWrites";
-import { DraftRepository } from "../../services/drafts";
+import {
+  journalDraft,
+  recoverDraft,
+  clearDraftJournal,
+} from "../../services/draftRecovery";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { currentDatabase } from "../../db/database";
@@ -18,7 +22,7 @@ export function useSetDraft() {
   const [draft, setDraft] = useState<SetDraft | null>(null);
   const latest = useRef<SetDraft | null>(null);
   const loadedId = useRef<string | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const unsaved = useRef(false);
   const writes = useRef<Promise<unknown>>(Promise.resolve());
   const published = useRef(false);
   const [saved, setSaved] = useState(true);
@@ -37,7 +41,11 @@ export function useSetDraft() {
     let active = true;
     published.current = false;
     void (async () => {
-      const stored = await draftDatabase.drafts.get(draftId);
+      const stored = recoverDraft(
+        draftDatabase.owner,
+        draftId,
+        await draftDatabase.drafts.get(draftId),
+      );
       if (!active) return;
       if (!stored && (await draftDatabase.decks.get(draftId))) {
         if (!active) return;
@@ -57,7 +65,8 @@ export function useSetDraft() {
         updatedAt: Date.now(),
       };
       if (active) {
-        await DraftRepository.save(initial);
+        await draftDatabase.drafts.put(initial);
+        clearDraftJournal(draftDatabase.owner, draftId);
         if (!active) return;
         latest.current = initial;
         loadedId.current = draftId;
@@ -74,57 +83,76 @@ export function useSetDraft() {
       active = false;
     };
   }, [draftId, id, navigate]);
-  useEffect(() => {
-    if (!draft || published.current) return;
-    latest.current = draft;
+  const commit = (value: SetDraft) => {
+    latest.current = value;
+    unsaved.current = true;
     setSaved(false);
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      if (!published.current)
-        void enqueue(draft)
-          .then(() => {
-            if (latest.current === draft) setSaved(true);
-          })
-          .catch(() =>
-            setError(
-              "Не удалось сохранить черновик. Проверьте свободное место.",
-            ),
-          );
-    }, 450);
-    return () => clearTimeout(timer.current);
-  }, [draft]);
+    setDraft(value);
+    try {
+      journalDraft(draftDatabase.owner, value);
+    } catch {
+      setError(
+        "Не удалось создать аварийную копию. Не закрывайте страницу до завершения сохранения.",
+      );
+    }
+    void enqueue(value)
+      .then(() => {
+        if (latest.current === value) {
+          clearDraftJournal(draftDatabase.owner, value.id);
+          unsaved.current = false;
+          setSaved(true);
+        }
+      })
+      .catch(() =>
+        setError(
+          "Не удалось сохранить черновик. Скопируйте изменения и проверьте свободное место.",
+        ),
+      );
+  };
   useEffect(() => {
-    const flush = () => {
-      clearTimeout(timer.current);
-      return latest.current && !published.current
+    const flush = () =>
+      latest.current && !published.current
         ? enqueue(latest.current)
         : writes.current;
-    };
     const unregister = registerFlush(flush);
-    const onPageHide = () => {
+    const onHide = () => {
       void flush().catch(() => undefined);
     };
-    window.addEventListener("pagehide", onPageHide);
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") onHide();
+    };
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (unsaved.current) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    };
+    window.addEventListener("pagehide", onHide);
+    window.addEventListener("beforeunload", beforeUnload);
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       unregister();
-      window.removeEventListener("pagehide", onPageHide);
-      onPageHide();
+      window.removeEventListener("pagehide", onHide);
+      window.removeEventListener("beforeunload", beforeUnload);
+      document.removeEventListener("visibilitychange", onVisibility);
+      onHide();
     };
   }, []);
-  const patch = (value: Partial<SetDraft>) =>
-    setDraft((d) => (d ? { ...d, ...value, updatedAt: Date.now() } : d));
-  const cardPatch = (cardId: string, value: Partial<SetCard>) =>
-    setDraft((current) =>
-      current
-        ? {
-            ...current,
-            cards: current.cards.map((card) =>
-              card.id === cardId ? { ...card, ...value } : card,
-            ),
-            updatedAt: Date.now(),
-          }
-        : current,
-    );
+  const patch = (value: Partial<SetDraft>) => {
+    const current = latest.current;
+    if (current) commit({ ...current, ...value, updatedAt: Date.now() });
+  };
+  const cardPatch = (cardId: string, value: Partial<SetCard>) => {
+    const current = latest.current;
+    if (current)
+      commit({
+        ...current,
+        cards: current.cards.map((card) =>
+          card.id === cardId ? { ...card, ...value } : card,
+        ),
+        updatedAt: Date.now(),
+      });
+  };
   function move(cardId: string, offset: number) {
     if (!draft) return;
     const cards = [...draft.cards];
@@ -138,12 +166,13 @@ export function useSetDraft() {
     if (!draft) return;
     setBusy(true);
     setError("");
-    clearTimeout(timer.current);
     published.current = true;
     try {
       await enqueue(draft);
       if (currentDatabase() !== draftDatabase) return;
       const deckId = await publishDraft(draft);
+      clearDraftJournal(draftDatabase.owner, draft.id);
+      unsaved.current = false;
       if (currentDatabase() !== draftDatabase) return;
       useSettings.getState().update({ learningLanguage: draft.language });
       useUI.getState().toast("Колода сохранена");

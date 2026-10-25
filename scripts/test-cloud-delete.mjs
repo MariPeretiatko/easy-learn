@@ -220,6 +220,33 @@ try {
       "Image cleanup passed: live/staged/young files preserved, old orphan removed, maintenance lock enforced and released.",
     );
   } else {
+    // Simulate an interrupted request: a durable intent must block old sessions
+    // and a second function invocation must resume with the existing lease.
+    const intent = await admin.rpc("request_account_deletion", {
+      target_owner: id,
+    });
+    assert.ifError(intent.error);
+    const pending = await user.rpc("account_deletion_pending");
+    assert.ifError(pending.error);
+    assert.equal(pending.data, true);
+    assert.ok(
+      (await user.storage.from("card-images").download(`${id}/test`)).error,
+    );
+    assert.ok(
+      (
+        await user.rpc("apply_sync_batch", {
+          operation_id: randomUUID(),
+          changes: [
+            {
+              table: "texts",
+              key: "blocked",
+              before: null,
+              value: { id: "blocked" },
+            },
+          ],
+        })
+      ).error,
+    );
     const deleted = await fetch(endpoint, {
       method: "POST",
       headers: {

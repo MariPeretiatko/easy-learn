@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import { BookOpen, LoaderCircle, X, Search } from "lucide-react";
 import { useUI } from "../store/useUI";
 export function Modal({
@@ -12,6 +12,7 @@ export function Modal({
   onClose: () => void;
   wide?: boolean;
 }) {
+  const titleId = useId();
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = ref.current;
@@ -21,6 +22,7 @@ export function Modal({
   return (
     <dialog
       ref={ref}
+      aria-labelledby={titleId}
       className={`modal ${wide ? "wide" : ""}`}
       onCancel={(e) => {
         e.preventDefault();
@@ -31,8 +33,13 @@ export function Modal({
       }}
     >
       <div className="modal-heading">
-        <h2>{title}</h2>
-        <button aria-label="Закрыть" className="icon-button" onClick={onClose}>
+        <h2 id={titleId}>{title}</h2>
+        <button
+          type="button"
+          aria-label="Закрыть"
+          className="icon-button"
+          onClick={onClose}
+        >
           <X size={20} />
         </button>
       </div>

@@ -5,6 +5,14 @@ test.use({ storageState: { cookies: [], origins: [] } });
 test("the German library has level folders, thematic modules and no tiny decks", async ({
   page,
 }) => {
+  await page.goto("/");
+  await expect(page.locator(".home-cta")).toHaveText(/Начать обучение/);
+  await expect(page.locator(".home-due")).toHaveText(
+    "Начните с небольшой подборки новых слов",
+  );
+  await expect(
+    page.locator(".home-stats > a").first().locator("strong"),
+  ).toHaveText("0");
   await page.goto("/library?tab=folders");
   await expect(page.locator(".collection-card")).toHaveCount(3);
   for (const level of ["A1", "A2", "B1"])

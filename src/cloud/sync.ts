@@ -4,7 +4,12 @@ import type { CloudClient } from "./client";
 import { currentDatabase, type LearningDatabase } from "../db/database";
 import { useAccount } from "./auth";
 import { supabase } from "./client";
-import { dataTables, type PendingOperation, type RemoteRecord } from "./types";
+import {
+  dataTables,
+  type Change,
+  type PendingOperation,
+  type RemoteRecord,
+} from "./types";
 import { transformImages, resetUploadChecks } from "./images";
 import { rebuildDerived } from "./derived";
 import { useSettings } from "../store/useSettings";
@@ -110,6 +115,7 @@ export async function synchronize(
       if (!isActive()) return;
       if (!rows.length) break;
       await database.localOnly(async () => {
+        const changed: Change[] = [];
         const pending = (await database.outbox.toArray()).flatMap(
           (op) => op.changes,
         );
@@ -126,6 +132,12 @@ export async function synchronize(
             });
             continue;
           }
+          changed.push({
+            table: row.kind,
+            key: row.record_id,
+            before: (await database.table(row.kind).get(row.record_id)) ?? null,
+            value: row.deleted ? null : row.data,
+          });
           if (row.deleted) {
             await database.table(row.kind).delete(row.record_id);
             await database.syncMeta.put({
@@ -156,7 +168,7 @@ export async function synchronize(
           key: "cursor",
           value: rows.at(-1)!.revision,
         });
-        await rebuildDerived(database);
+        await rebuildDerived(database, changed);
       });
       if (rows.length < 200) break;
     }
@@ -164,17 +176,100 @@ export async function synchronize(
   await pull();
   if (!isActive()) return;
   const pending = await database.outbox.orderBy("order").toArray();
-  for (const operation of pending) {
-    if (!isActive()) return;
-    if (await database.conflicts.get(operation.id)) {
-      useSync.setState({
-        state: "conflict",
-        message:
-          "Есть изменения с другого устройства. Выберите версию в настройках.",
-      });
-      return;
+  const blockedKeys = new Set<string>();
+  let hasConflict = false,
+    hasFailure = false;
+  const collectReferences = (value: unknown) => {
+    if (!value || typeof value !== "object") return;
+    for (const [key, item] of Object.entries(value)) {
+      if ((key === "id" || key.endsWith("Id")) && typeof item === "string")
+        blockedKeys.add(item);
+      else if (key.endsWith("Ids") && Array.isArray(item))
+        item.forEach((id) => {
+          if (typeof id === "string") blockedKeys.add(id);
+        });
+      else if (item && typeof item === "object") collectReferences(item);
     }
-    const result = await remote.push(operation);
+  };
+  const block = (operation: PendingOperation) =>
+    operation.changes.forEach((change) => {
+      blockedKeys.add(change.key);
+      collectReferences(change.before);
+      collectReferences(change.value);
+    });
+  const referencesBlocked = (value: unknown): boolean =>
+    typeof value === "string"
+      ? blockedKeys.has(value)
+      : Array.isArray(value)
+        ? value.some(referencesBlocked)
+        : !!value &&
+          typeof value === "object" &&
+          Object.values(value).some(referencesBlocked);
+  for (const operation of pending) {
+    if (
+      operation.changes.some(
+        (change) =>
+          blockedKeys.has(change.key) ||
+          referencesBlocked(change.value) ||
+          referencesBlocked(change.before),
+      )
+    ) {
+      block(operation);
+      continue;
+    }
+    if (!isActive()) return;
+    const failure = (await database.syncMeta.get(`failure:${operation.id}`))
+      ?.value as { permanent?: boolean } | undefined;
+    if (failure?.permanent) {
+      hasFailure = true;
+      block(operation);
+      continue;
+    }
+    if (await database.conflicts.get(operation.id)) {
+      hasConflict = true;
+      block(operation);
+      continue;
+    }
+    let result: Awaited<ReturnType<Transport["push"]>>;
+    try {
+      result = await remote.push(operation);
+    } catch (error) {
+      if (!isActive()) return;
+      const detail = error as {
+        code?: string;
+        message?: string;
+        status?: number;
+        statusCode?: string;
+      };
+      const code = String(
+        detail.code ?? detail.status ?? detail.statusCode ?? "unknown",
+      );
+      const temporary =
+        /cleanup in progress|maintenance|timeout|network|fetch|connection|обслуживан/i.test(
+          detail.message ?? "",
+        );
+      const permanent =
+        !temporary &&
+        (/^(22|23|P0001|400|413|422)/.test(code) ||
+          /Недопустимое изображение|Изображение принадлежит другому аккаунту/i.test(
+            detail.message ?? "",
+          ));
+      await database.syncMeta.put({
+        key: `failure:${operation.id}`,
+        value: {
+          permanent,
+          operationId: operation.id,
+          code,
+          message: detail.message ?? "Ошибка отправки",
+          at: Date.now(),
+        },
+      });
+      // Network/session failures affect the whole connection. Data errors affect this operation and its dependants.
+      if (!permanent) throw error;
+      hasFailure = true;
+      block(operation);
+      continue;
+    }
     if (!isActive()) return;
     if (!result.ok) {
       await database.conflicts.put({
@@ -183,11 +278,9 @@ export async function synchronize(
         remote: result.conflicts ?? [],
         createdAt: Date.now(),
       });
-      useSync.setState({
-        state: "conflict",
-        message: "Конфликт изменений. Обе версии сохранены в настройках.",
-      });
-      return;
+      hasConflict = true;
+      block(operation);
+      continue;
     }
     if (
       !Array.isArray(result.records) ||
@@ -195,6 +288,8 @@ export async function synchronize(
     )
       throw new Error("Неполное подтверждение облачной операции");
     await database.localOnly(async () => {
+      const changed: Change[] = [];
+      await database.syncMeta.delete(`failure:${operation.id}`);
       await database.outbox.delete(operation.id);
       for (const row of result.records ?? [])
         await database.syncMeta.put({
@@ -211,6 +306,12 @@ export async function synchronize(
           remaining.some((c) => c.table === row.kind && c.key === row.record_id)
         )
           continue;
+        changed.push({
+          table: row.kind,
+          key: row.record_id,
+          before: (await database.table(row.kind).get(row.record_id)) ?? null,
+          value: row.deleted ? null : row.data,
+        });
         if (row.deleted) {
           await database.table(row.kind).delete(row.record_id);
           await database.syncMeta.put({
@@ -238,7 +339,7 @@ export async function synchronize(
         }
         await database.syncMeta.delete(item.key);
       }
-      await rebuildDerived(database);
+      await rebuildDerived(database, changed);
     });
   }
   await pull();
@@ -251,8 +352,18 @@ export async function synchronize(
         ),
       });
     useSync.setState({
-      state: (await database.outbox.count()) ? "local" : "saved",
-      message: "",
+      state: hasConflict
+        ? "conflict"
+        : hasFailure
+          ? "error"
+          : (await database.outbox.count())
+            ? "local"
+            : "saved",
+      message: hasConflict
+        ? "Есть конфликт версий. Независимые изменения отправлены; откройте настройки."
+        : hasFailure
+          ? "Часть операций требует исправления. Подробности и резервная копия доступны в настройках."
+          : "",
     });
   }
 }
@@ -283,12 +394,12 @@ export function startSync(database: LearningDatabase) {
         if (navigator.locks)
           await navigator.locks.request(`easy-learn-sync-${owner}`, action);
         else await action();
-      } catch {
+      } catch (error) {
+        const detail = error as { code?: string; message?: string };
         if (active())
           useSync.setState({
             state: "error",
-            message:
-              "Не удалось синхронизировать. Изменения сохранены на устройстве; проверьте сеть, сессию и доступность облака.",
+            message: `Не удалось синхронизировать (${detail.code ?? "network"}). Изменения сохранены на устройстве. ${detail.message ?? "Проверьте подключение."}`,
           });
       } finally {
         running = null;

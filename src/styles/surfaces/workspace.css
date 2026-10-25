@@ -1,0 +1,246 @@
+:root {
+  --bg: #fff;
+  --surface: #fff;
+  --text: #282e3e;
+  --muted: #657293;
+  --line: #e9ecf5;
+  --primary: #4255ff;
+  --accent: #4255ff;
+  --soft: #eff0ff;
+  --input: #fff;
+  --clone-row: #fff;
+  --clone-pill: #f6f7fb;
+  --clone-search: #f6f7fb;
+  --clone-active: #edefff;
+  background: var(--bg);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0a092d;
+  --surface: #151434;
+  --text: #f6f7fb;
+  --muted: #c2c8dd;
+  --line: #30324f;
+  --primary: #a8b1ff;
+  --accent: #4255ff;
+  --soft: #272844;
+  --input: #2e3856;
+  --clone-row: #2e3856;
+  --clone-pill: #2e3856;
+  --clone-search: #2e3856;
+  --clone-active: #282e3e;
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  background: var(--bg);
+}
+
+.quizlet-shell {
+  font-family: "Comfortaa Variable", "Comfortaa", sans-serif;
+}
+
+.quizlet-shell .topbar {
+  background: var(--bg);
+  border: 0;
+  height: 72px;
+  padding: 0 24px;
+  gap: 19px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.quizlet-shell .topbar .mobile-toggle {
+  display: flex;
+  padding: 5px 0;
+  color: var(--muted);
+}
+
+.quizlet-shell .global-search {
+  width: min(480px, 42vw);
+  max-width: 480px;
+  flex: 0 1 480px;
+  margin: 0 auto;
+  background: var(--clone-search);
+  border-radius: 7px;
+  height: 36px;
+}
+
+.quizlet-shell .global-search input {
+  color: var(--text);
+  font-size: 16px !important;
+  min-height: 32px !important;
+  font-weight: 600;
+}
+
+.quizlet-shell .global-search input::placeholder {
+  color: var(--muted);
+  opacity: 0.8;
+}
+
+.quizlet-shell .topbar-right {
+  gap: 14px;
+}
+
+.quizlet-shell .topbar .create-button {
+  display: flex;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  border-radius: 50% !important;
+  padding: 0 !important;
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+
+.quizlet-shell .topbar .avatar {
+  font-size: 25px;
+  background: #ffda69;
+  border: 0;
+  outline: 0;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+}
+
+.quizlet-shell .header-dropdown {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  padding: 10px;
+  min-width: 215px;
+  top: 43px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1333333333);
+}
+
+.quizlet-shell .header-dropdown a,
+.quizlet-shell .header-dropdown > button {
+  font-size: 15px;
+  padding: 11px;
+  gap: 13px;
+}
+
+.dropdown-separator {
+  border-top: 1px solid var(--line);
+  margin: 6px;
+}
+
+.quizlet-shell .study-sidebar {
+  width: 248px;
+  top: 72px;
+  padding: 20px 14px;
+  border: 0;
+  background: var(--bg);
+  z-index: 35;
+}
+
+.quizlet-shell .study-sidebar nav {
+  gap: 4px;
+}
+
+.quizlet-shell .study-sidebar nav a {
+  padding: 11px 10px;
+  font-size: 15px;
+  gap: 14px;
+  font-weight: 700;
+  border-radius: 7px;
+  color: var(--muted);
+}
+
+.quizlet-shell .study-sidebar nav a.active {
+  color: var(--primary);
+  background: var(--clone-active);
+}
+
+.quizlet-shell .study-sidebar nav a:hover {
+  background: var(--clone-active);
+}
+
+.quizlet-shell .study-sidebar .sidebar-divider {
+  margin: 23px 0;
+  border-color: var(--line);
+}
+
+.quizlet-shell .study-sidebar .nav-label {
+  font-size: 15px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--muted);
+  padding: 0 7px;
+  margin-bottom: 20px;
+}
+
+.quizlet-shell .workspace {
+  padding-left: 248px;
+}
+
+.quizlet-shell .main-content {
+  width: 100%;
+  max-width: 1100px;
+  padding: 36px 42px 80px;
+  margin: auto;
+}
+
+.quizlet-shell .button {
+  border-radius: 24px;
+  min-height: 42px;
+  font-size: 16px;
+  padding: 11px 20px;
+  background: var(--accent);
+  color: #fff;
+}
+
+.quizlet-shell .button:hover {
+  background: color-mix(in srgb, var(--accent), black 12%);
+}
+
+.quizlet-shell .button.secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+
+.quizlet-shell .button.ghost {
+  color: var(--primary);
+  background: transparent;
+}
+
+.quizlet-shell .button.secondary:hover {
+  border-color: var(--primary);
+  background: var(--soft);
+}
+
+.quizlet-shell .button.selected {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.quizlet-shell .icon-button {
+  color: var(--muted);
+  border-radius: 50%;
+}
+
+.quizlet-shell .icon-button:hover {
+  background: var(--soft);
+  color: var(--text);
+}
+
+.quizlet-shell .icon-button.active {
+  color: #ffcd1f;
+}
+
+.quizlet-shell .modal {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+
+.quizlet-shell input:not([type="checkbox"]):not([type="range"]):focus,
+.quizlet-shell textarea:focus {
+  border-color: var(--accent);
+}

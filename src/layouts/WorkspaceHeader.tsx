@@ -165,7 +165,7 @@ export function WorkspaceHeader({
         <div className="header-menu">
           <button
             className="avatar"
-            aria-label="Мой профиль"
+            aria-label={user ? "Мой профиль" : "Локальный режим"}
             aria-expanded={dropdown === "profile"}
             onClick={() =>
               setDropdown(dropdown === "profile" ? null : "profile")
@@ -177,19 +177,14 @@ export function WorkspaceHeader({
             <div className="header-dropdown profile-dropdown">
               <div className="profile-heading">
                 <strong>
-                  {settings.profileName ??
-                    user?.user_metadata.display_name ??
-                    "Мой профиль"}
+                  {settings.profileName ||
+                    user?.user_metadata.display_name ||
+                    (user ? "Мой профиль" : "Локальный режим")}
                 </strong>
-                <small>{user?.email ?? "Локальное учебное пространство"}</small>
+                <small>{user?.email ?? "На этом устройстве"}</small>
               </div>
-              {user ? (
+              {user && (
                 <button onClick={() => void perform(signOut)}>Выйти</button>
-              ) : (
-                <>
-                  <Link to="/login">Войти</Link>
-                  <Link to="/register">Регистрация</Link>
-                </>
               )}
               <Link to="/library">
                 <Folder size={18} />

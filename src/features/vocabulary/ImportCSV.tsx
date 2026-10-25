@@ -13,10 +13,11 @@ export function ImportCSV({ onClose }: { onClose: () => void }) {
   const [deck, setDeck] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [separator, setSeparator] = useState("");
   const { settings } = useSettings();
   function preview() {
     try {
-      setRows(parseCSV(text));
+      setRows(parseCSV(text, separator || undefined));
       setError("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось прочитать CSV");
@@ -82,6 +83,21 @@ export function ImportCSV({ onClose }: { onClose: () => void }) {
           }}
           placeholder={"word,translation\nHund,собака\nKatze,кошка"}
         />
+      </label>
+      <label>
+        Разделитель столбцов
+        <select
+          value={separator}
+          onChange={(event) => {
+            setSeparator(event.target.value);
+            setRows([]);
+          }}
+        >
+          <option value="">Определить автоматически</option>
+          <option value={"\t"}>Табуляция (TSV)</option>
+          <option value=",">Запятая</option>
+          <option value=";">Точка с запятой</option>
+        </select>
       </label>
       <label>
         Добавить в колоду

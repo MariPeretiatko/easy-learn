@@ -1,3 +1,4 @@
+import "../styles/main.css";
 import { CloudStatus } from "../features/auth/CloudStatus";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {

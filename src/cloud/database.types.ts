@@ -36,6 +36,34 @@ export type Database = {
   };
   public: {
     Tables: {
+      account_deletion_jobs: {
+        Row: {
+          cleanup_token: string;
+          completed_at: string | null;
+          last_error: string | null;
+          owner_id: string;
+          requested_at: string;
+          status: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          cleanup_token: string;
+          completed_at?: string | null;
+          last_error?: string | null;
+          owner_id: string;
+          requested_at?: string;
+          status?: string;
+        };
+        Update: {
+          cleanup_token?: string;
+          completed_at?: string | null;
+          last_error?: string | null;
+          owner_id?: string;
+          requested_at?: string;
+          status?: string;
+        };
+        Relationships: [];
+      };
       card_progress: {
         Row: {
           baseline: NonNullable<Json>;
@@ -257,6 +285,11 @@ export type Database = {
       };
     };
     Functions: {
+      account_available: { Args: Record<PropertyKey, never>; Returns: boolean };
+      account_deletion_pending: {
+        Args: Record<PropertyKey, never>;
+        Returns: boolean;
+      };
       apply_sync_batch: {
         Args: { changes: Json; operation_id: string };
         Returns: Json;
@@ -265,6 +298,10 @@ export type Database = {
       finish_image_cleanup: {
         Args: { cleanup_token: string; target_owner: string };
         Returns: undefined;
+      };
+      request_account_deletion: {
+        Args: { target_owner: string };
+        Returns: string;
       };
       stage_sync_batch: {
         Args: {

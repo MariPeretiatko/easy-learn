@@ -11,7 +11,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "check:unused": "node scripts/check-unused.mjs",
-    "check": "npm run typecheck && npm run check:unused && npm test && npm run build",
+    "check": "npm run typecheck && npm run check:unused && npm test && npm run build && npm run check:bundle",
     "test:e2e:production": "node scripts/test-production.mjs",
     "supabase:start": "supabase start -x edge-runtime,studio,logflare,vector,supavisor,realtime,imgproxy",
     "supabase:stop": "supabase stop",
@@ -21,7 +21,9 @@
     "catalog:seed": "node scripts/catalog-seed.mjs",
     "test:cloud:delete": "node scripts/test-cloud-delete.mjs",
     "cloud:types": "node scripts/generate-cloud-types.mjs",
-    "test:cloud:cleanup": "node scripts/test-cloud-delete.mjs --cleanup"
+    "test:cloud:cleanup": "node scripts/test-cloud-delete.mjs --cleanup",
+    "check:bundle": "node scripts/check-bundle.mjs",
+    "test:auth": "playwright test --config playwright.auth.config.ts"
   },
   "dependencies": {
     "@fontsource-variable/comfortaa": "^5.3.0",

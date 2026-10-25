@@ -1,3 +1,4 @@
+import { completeAccountDeletion } from "../_shared/accountDeletion.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 Deno.serve(
   { port: Number(Deno.env.get("PORT") ?? 8000) },
@@ -26,54 +27,50 @@ Deno.serve(
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { persistSession: false } },
     );
+    // The scheduler retries pending jobs with the service-role credential.
+    if (token === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")) {
+      const jobs = await admin
+        .from("account_deletion_jobs")
+        .select("owner_id")
+        .eq("status", "pending")
+        .order("requested_at")
+        .limit(10);
+      if (jobs.error) return new Response("{}", { status: 503, headers });
+      let completed = 0;
+      for (const job of jobs.data) {
+        try {
+          await completeAccountDeletion(admin, job.owner_id);
+          completed++;
+        } catch {
+          /* Durable job remains available for the next scheduled retry. */
+        }
+      }
+      return new Response(JSON.stringify({ ok: true, completed }), { headers });
+    }
     const {
       data: { user },
       error,
     } = await admin.auth.getUser(token);
     if (error || !user) return new Response("{}", { status: 401, headers });
-    const lease = await admin.rpc("begin_image_cleanup", {
-      target_owner: user.id,
-    });
-    if (lease.error)
-      return new Response(
-        JSON.stringify({ error: "Идёт обслуживание файлов. Повторите позже." }),
-        { status: 409, headers },
-      );
     try {
-      const { data: entries, error: listError } = await admin.storage
-        .from("card-images")
-        .list(user.id, { limit: 1000 });
-      if (listError)
-        return new Response(
-          JSON.stringify({ error: "Не удалось прочитать файлы" }),
-          { status: 503, headers },
-        );
-      let files = entries;
-      while (files?.length) {
-        const { error } = await admin.storage
-          .from("card-images")
-          .remove(files.map((file) => `${user.id}/${file.name}`));
-        if (error)
-          return new Response(
-            JSON.stringify({ error: "Не удалось удалить файлы" }),
-            { status: 503, headers },
-          );
-        const next = await admin.storage
-          .from("card-images")
-          .list(user.id, { limit: 1000 });
-        if (next.error) return new Response("{}", { status: 503, headers });
-        files = next.data;
-      }
-      const removed = await admin.auth.admin.deleteUser(user.id);
-      return new Response(JSON.stringify({ ok: !removed.error }), {
-        status: removed.error ? 503 : 200,
-        headers,
-      });
-    } finally {
-      await admin.rpc("finish_image_cleanup", {
-        target_owner: user.id,
-        cleanup_token: lease.data,
-      });
+      await completeAccountDeletion(admin, user.id);
+      return new Response(JSON.stringify({ ok: true }), { headers });
+    } catch {
+      const job = await admin
+        .from("account_deletion_jobs")
+        .select("status")
+        .eq("owner_id", user.id)
+        .maybeSingle();
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          pending: !!job.data,
+          error: job.data
+            ? "Удаление начато. Аккаунт заблокирован до завершения; повторите удаление."
+            : "Не удалось начать удаление. Повторите позже.",
+        }),
+        { status: 503, headers },
+      );
     }
   },
 );

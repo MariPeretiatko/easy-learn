@@ -85,3 +85,69 @@ it("replays concurrent review and activity events deterministically without doub
     await database.delete();
   }
 });
+it("incremental rebuild touches only affected cards and days and agrees with full replay", async () => {
+  const database = new LearningDatabase(`test-${crypto.randomUUID()}`);
+  try {
+    await database.localOnly(async () => {
+      const baseline = newWord({
+        id: "changed",
+        term: "Haus",
+        translation: "дом",
+      });
+      await database.words.bulkPut([
+        baseline,
+        newWord({
+          id: "untouched",
+          term: "Baum",
+          translation: "дерево",
+          reviewCount: 99,
+        }),
+      ]);
+      const review = {
+        id: "r",
+        wordId: "changed",
+        result: "good" as const,
+        timestamp: 10,
+        responseTime: 1,
+        baseline,
+      };
+      await database.reviews.put(review);
+      const activity = {
+        id: "a",
+        date: "2026-10-25",
+        patch: { wordsReviewed: 1 },
+      };
+      await database.activity.put(activity);
+      await database.statistics.put({
+        date: "2026-10-24",
+        wordsReviewed: 77,
+        wordsAdded: 0,
+        correctAnswers: 0,
+        incorrectAnswers: 0,
+        studyMinutes: 0,
+        readingMinutes: 0,
+        listeningMinutes: 0,
+      });
+      await rebuildDerived(database, [
+        { table: "reviews", key: "r", before: null, value: review },
+        { table: "activity", key: "a", before: null, value: activity },
+      ]);
+      expect((await database.words.get("untouched"))?.reviewCount).toBe(99);
+      expect((await database.statistics.get("2026-10-24"))?.wordsReviewed).toBe(
+        77,
+      );
+      const changed = await database.words.get("changed");
+      const day = await database.statistics.get("2026-10-25");
+      await rebuildDerived(database);
+      expect(await database.words.get("changed")).toEqual(changed);
+      expect(await database.statistics.get("2026-10-25")).toEqual(day);
+      await database.reviews.delete("r");
+      await rebuildDerived(database, [
+        { table: "reviews", key: "r", before: review, value: null },
+      ]);
+      expect((await database.words.get("changed"))?.reviewCount).toBe(0);
+    });
+  } finally {
+    await database.delete();
+  }
+});

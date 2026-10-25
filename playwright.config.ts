@@ -4,6 +4,7 @@ const localURL = `http://127.0.0.1:${production ? 4173 : 5173}`;
 const baseURL = process.env.E2E_BASE_URL ?? localURL;
 export default defineConfig({
   testDir: "./tests",
+  testIgnore: "auth-entry.spec.ts",
   timeout: 45000,
   expect: { timeout: 7000 },
   fullyParallel: false,
@@ -33,8 +34,8 @@ export default defineConfig({
     ? undefined
     : {
         command: production
-          ? "node node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 4173 --strictPort"
-          : "node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5173 --strictPort",
+          ? `node node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 4173 --strictPort${process.env.E2E_LOCAL_BUILD ? " --outDir dist-e2e" : ""}`
+          : "VITE_ENABLE_LOCAL_WORKSPACE=true VITE_SUPABASE_URL= VITE_SUPABASE_PUBLISHABLE_KEY= node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5173 --strictPort",
         url: localURL,
         reuseExistingServer: !process.env.CI,
       },

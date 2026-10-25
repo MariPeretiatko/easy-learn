@@ -36,7 +36,10 @@ export function Dashboard() {
     (word) => word.language === settings.learningLanguage,
   );
   const due = words.filter(
-    (word) => word.status !== "ignored" && word.nextReviewAt <= Date.now(),
+    (word) =>
+      word.status !== "ignored" &&
+      word.status !== "new" &&
+      word.nextReviewAt <= Date.now(),
   ).length;
   const day = data.statistics.find((entry) => entry.date === dateKey());
   const recent = recentStudyItems(data);
@@ -54,14 +57,26 @@ export function Dashboard() {
         </p>
         <Link
           className="button home-cta"
-          to={words.length ? "/learn?mode=review" : "/create-set"}
+          to={
+            due
+              ? "/learn?mode=review"
+              : words.length
+                ? "/learn?mode=learn"
+                : "/create-set"
+          }
         >
-          {words.length ? "Начать повторение" : "Создать первые карточки"}{" "}
+          {due
+            ? "Начать повторение"
+            : words.length
+              ? "Начать обучение"
+              : "Создать первые карточки"}{" "}
           <ArrowRight size={19} />
         </Link>
         <span className="home-due">
           {words.length
-            ? `${due} слов ждут повторения`
+            ? due
+              ? `${due} слов ждут повторения`
+              : "Начните с небольшой подборки новых слов"
             : "Ваше следующее открытие начинается здесь"}
         </span>
       </section>

@@ -1,0 +1,454 @@
+@media (min-width: 1800px) {
+  .quizlet-shell .main-content {
+    padding-top: 38px;
+    max-width: 1100px;
+  }
+  .quizlet-library h1 {
+    margin-bottom: 48px;
+  }
+  .quizlet-shell .global-search {
+    max-width: 500px;
+  }
+  .quizlet-library-tabs {
+    margin-bottom: 48px;
+  }
+}
+@media (max-width: 1100px) {
+  .quizlet-shell .study-sidebar {
+    width: 220px;
+  }
+  .quizlet-shell .workspace {
+    padding-left: 220px;
+  }
+  .quizlet-shell .main-content {
+    padding: 30px 28px 60px;
+  }
+  .quizlet-library-tabs {
+    gap: 6px;
+  }
+  .quizlet-library-tabs button {
+    font-size: 13px;
+    padding: 9px 11px;
+  }
+  .set-mode-nav {
+    gap: 9px;
+  }
+  .set-mode-nav > a {
+    font-size: 14px;
+    padding: 13px;
+    min-width: 105px;
+  }
+  .set-editor-title h1 {
+    font-size: 24px;
+  }
+  .editor-card-body {
+    gap: 20px;
+    grid-template-columns: 1fr 1fr 85px;
+  }
+  .editor-image {
+    width: 85px;
+  }
+  .game-tiles {
+    gap: 16px;
+  }
+  .game-tile {
+    padding: 25px 18px;
+  }
+}
+@media (max-width: 850px) {
+  .set-mode-nav > a {
+    min-width: 110px;
+  }
+  .set-editor-title {
+    align-items: flex-start;
+  }
+  .set-editor-title > div {
+    flex-direction: column;
+  }
+  .editor-language-row label {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .set-terms-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .game-tiles {
+    grid-template-columns: 1fr;
+  }
+  .game-tile {
+    display: grid;
+    grid-template-columns: 50px 1fr;
+    gap: 12px 20px;
+  }
+  .game-tile p,
+  .game-tile > .button {
+    grid-column: 2;
+  }
+  .set-author-actions {
+    gap: 6px;
+  }
+  .bordered {
+    width: 35px;
+    height: 35px;
+  }
+}
+@media (max-width: 720px) {
+  .quizlet-shell .topbar {
+    height: 68px;
+    padding: 0 20px;
+    gap: 14px;
+    flex-wrap: nowrap;
+  }
+  .quizlet-shell .topbar .mobile-toggle {
+    display: flex;
+  }
+  .quizlet-shell .quizlet-shell .global-search {
+    width: auto;
+    min-width: 0;
+    flex: 1;
+    margin: 0 8px;
+    max-width: none;
+    height: 36px;
+    order: initial;
+  }
+  .quizlet-shell .topbar-right {
+    gap: 12px;
+  }
+  .quizlet-shell .topbar .create-button {
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+  }
+  .quizlet-shell .study-sidebar {
+    top: 0;
+    width: 280px;
+    visibility: hidden;
+    transform: translateX(-100%);
+    z-index: 60;
+    padding-top: 25px;
+  }
+  .quizlet-shell .study-sidebar.is-open {
+    visibility: visible;
+    transform: translateX(0);
+  }
+  .quizlet-shell .study-sidebar nav a {
+    font-size: 16px;
+  }
+  .quizlet-shell .workspace {
+    padding-left: 0;
+  }
+  .quizlet-shell .main-content {
+    padding: 28px 22px 50px;
+  }
+  .quizlet-library h1 {
+    font-size: 29px;
+    margin-bottom: 32px;
+  }
+  .quizlet-library-tabs {
+    margin-bottom: 30px;
+  }
+  .quizlet-library-toolbar {
+    gap: 15px;
+    margin-bottom: 30px;
+  }
+  .quizlet-library-toolbar select {
+    max-width: 48%;
+    font-size: 13px;
+    padding: 9px;
+  }
+  .library-search {
+    width: 50%;
+    padding: 0 12px;
+    height: 40px;
+  }
+  .library-search input {
+    font-size: 13px !important;
+  }
+  .library-search svg {
+    width: 17px;
+  }
+  .library-date-group {
+    margin-bottom: 35px;
+  }
+  .quizlet-set-row strong {
+    font-size: 16px;
+  }
+  .set-row-menu > .icon-button,
+  .draft-row > .icon-button {
+    opacity: 1;
+  }
+  .set-row-meta {
+    font-size: 12px;
+    flex-wrap: wrap;
+  }
+  .collection-grid {
+    grid-template-columns: 1fr;
+  }
+  .clone-page-heading {
+    align-items: flex-start;
+  }
+  .clone-page-heading h1 {
+    font-size: 28px;
+  }
+  .clone-page-heading .button {
+    font-size: 14px;
+  }
+  .clone-page-heading > div:last-child {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .quizlet-set-page h1 {
+    font-size: 30px;
+  }
+  .set-mode-nav > a {
+    font-size: 15px;
+    min-width: 130px;
+  }
+  .set-preview {
+    height: 330px;
+  }
+  .set-flip-target strong {
+    font-size: 32px;
+  }
+  .set-author-row {
+    align-items: flex-start;
+    gap: 13px;
+  }
+  .set-author-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 200px;
+  }
+  .set-term-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    padding: 20px;
+  }
+  .set-term-row > div {
+    grid-column: 1/-1;
+    justify-content: flex-end;
+  }
+  .set-term-row > span {
+    padding-left: 15px;
+    font-size: 16px;
+  }
+  .set-term-row > strong {
+    font-size: 16px;
+  }
+  .set-editor-title {
+    flex-direction: column;
+    gap: 20px;
+  }
+  .set-editor-title > div {
+    flex-direction: row;
+    align-self: flex-end;
+  }
+  .set-editor-title h1 {
+    font-size: 26px;
+  }
+  .autosave-status {
+    font-size: 13px;
+  }
+  .editor-card-body {
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    padding: 20px;
+  }
+  .editor-image {
+    grid-column: 1/-1;
+    justify-self: end;
+    height: 60px;
+  }
+  .editor-card-body textarea {
+    font-size: 16px;
+  }
+  .editor-card-body > label > span {
+    font-size: 12px;
+  }
+  .editor-add-card {
+    padding: 27px;
+    font-size: 15px;
+  }
+  .solution-sheet {
+    padding: 24px;
+  }
+  .solution-sheet p {
+    font-size: 16px;
+  }
+  .blast-game {
+    padding: 22px;
+  }
+  .blast-options > button {
+    font-size: 16px;
+    padding: 15px;
+  }
+}
+@media (max-width: 460px) {
+  .quizlet-shell .topbar {
+    height: 108px;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 18px;
+  }
+  .quizlet-shell .global-search {
+    order: 4;
+    flex: 1 0 100%;
+    max-width: none;
+    height: 32px;
+    margin: 0;
+    background: var(--clone-search);
+  }
+  .quizlet-shell .global-search input {
+    opacity: 1;
+    width: 100%;
+    font-size: 14px !important;
+  }
+  .quizlet-shell .topbar-right {
+    margin-left: auto;
+  }
+  .quizlet-shell .main-content {
+    padding: 26px 18px 45px;
+  }
+  .quizlet-library-tabs button {
+    font-size: 13px;
+  }
+  .quizlet-set-row {
+    padding: 13px;
+  }
+  .quizlet-set-row:hover {
+    padding-bottom: 11px;
+  }
+  .library-date-group h2 {
+    font-size: 12px;
+  }
+  .library-search input {
+    font-size: 12px !important;
+  }
+  .quizlet-library-toolbar select {
+    font-size: 12px;
+  }
+  .set-mode-nav > a {
+    min-width: 118px;
+  }
+  .set-preview {
+    height: 290px;
+  }
+  .set-flip-target {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  .set-flip-target strong {
+    font-size: 29px;
+  }
+  .set-preview-paging > span {
+    min-width: 40px;
+    font-size: 14px;
+  }
+  .set-preview-controls > div {
+    gap: 3px;
+  }
+  .set-author-row {
+    flex-direction: column;
+  }
+  .set-author-actions {
+    max-width: none;
+  }
+  .set-terms-heading > div {
+    flex-wrap: wrap;
+  }
+  .set-terms-heading h2 {
+    font-size: 20px;
+  }
+  .set-term-row {
+    padding: 17px 14px;
+    gap: 13px;
+  }
+  .set-term-row > span {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .editor-language-row {
+    gap: 15px;
+  }
+  .editor-language-row select {
+    max-width: 130px;
+    font-size: 14px;
+  }
+  .editor-card-body {
+    grid-template-columns: 1fr;
+    padding: 20px 18px 10px;
+    gap: 17px;
+  }
+  .editor-image {
+    grid-column: 1;
+  }
+  .editor-card-body textarea {
+    min-height: 50px;
+  }
+  .editor-card-bar {
+    padding: 8px 12px;
+  }
+  .set-editor-title h1 {
+    font-size: 24px;
+  }
+  .editor-bottom-actions .button,
+  .set-editor-title .button {
+    font-size: 14px;
+    padding: 11px 16px;
+  }
+  .clone-page-heading {
+    flex-wrap: wrap;
+  }
+  .clone-page-heading .inline-actions {
+    width: 100%;
+  }
+  .game-tile {
+    grid-template-columns: 40px 1fr;
+  }
+  .library-blank {
+    padding: 45px 10px;
+  }
+  .library-blank h2 {
+    font-size: 21px;
+  }
+  .library-blank p {
+    font-size: 15px;
+  }
+}
+@media print {
+  .quizlet-shell .topbar,
+  .quizlet-shell .study-sidebar,
+  .set-mode-nav,
+  .set-study-stage,
+  .set-author-actions,
+  .set-term-search,
+  .set-edit-terms,
+  .set-terms-heading > div,
+  .set-term-row > div,
+  .install-button {
+    display: none !important;
+  }
+  .quizlet-shell .workspace {
+    padding: 0;
+  }
+  .quizlet-shell .main-content {
+    max-width: none;
+    padding: 0;
+  }
+  .set-term-row {
+    break-inside: avoid;
+    border: 1px solid #ccc;
+    background: white;
+    color: black;
+  }
+  body,
+  .quizlet-shell {
+    background: white;
+    color: black;
+  }
+  .set-term-row > span {
+    border-color: #ddd;
+  }
+}

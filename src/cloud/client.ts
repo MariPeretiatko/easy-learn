@@ -13,7 +13,7 @@ function validKey(value: string) {
 }
 export const cloudConfigurationError =
   !url && !key
-    ? "Облачный аккаунт пока не подключён. Локальная библиотека доступна без регистрации."
+    ? "Вход временно недоступен: сервер аккаунтов не настроен."
     : !url || !key || !/^https?:\/\//.test(url) || !validKey(key)
       ? "Некорректная публичная конфигурация Supabase."
       : "";

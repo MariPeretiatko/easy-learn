@@ -139,7 +139,7 @@ test("login, two-device synchronization, offline edits and logout isolation", as
       .last()
       .click();
     await expect(
-      page.getByRole("link", { name: "Войти", exact: true }).last(),
+      page.getByRole("heading", { name: "Войти", exact: true }),
     ).toBeVisible();
     await page.goto(url);
     await expect(
@@ -259,15 +259,94 @@ test("guest library is imported explicitly and survives a second-device login", 
   browser,
 }) => {
   const title = `Guest ${randomUUID()}`;
-  await page.goto(`${base}/create-set`);
-  await page.getByLabel("Название колоды").fill(title);
-  await page.getByLabel("Термин 1", { exact: true }).fill("Gastwort");
-  await page.getByLabel("Определение 1", { exact: true }).fill("слово гостя");
-  await page
-    .getByRole("button", { name: "Сохранить колоду", exact: true })
-    .first()
-    .click();
-  await expect(page).toHaveURL(/\/sets\//);
+  // Seed an existing pre-login library from the previous standalone version.
+  await page.goto(`${base}/login`);
+  await page.evaluate(async (title) => {
+    await new Promise<void>((resolve, reject) => {
+      const open = indexedDB.open("easy-learn", 20);
+      open.onupgradeneeded = () => {
+        const database = open.result;
+        for (const name of [
+          "words",
+          "decks",
+          "texts",
+          "videos",
+          "reviews",
+          "statistics",
+          "recent",
+          "drafts",
+          "collections",
+          "solutions",
+          "testResults",
+        ])
+          if (!database.objectStoreNames.contains(name))
+            database.createObjectStore(name, {
+              keyPath:
+                name === "statistics"
+                  ? "date"
+                  : name === "recent"
+                    ? "key"
+                    : "id",
+            });
+      };
+      open.onerror = () => reject(open.error);
+      open.onsuccess = () => {
+        const database = open.result;
+        const tx = database.transaction(["words", "decks"], "readwrite");
+        tx.objectStore("words").put({
+          id: "legacy-guest-word",
+          term: "Gastwort",
+          translation: "слово гостя",
+          language: "de",
+          nativeLanguage: "ru",
+          definition: "",
+          example: "",
+          pronunciation: "",
+          ipa: "",
+          partOfSpeech: "",
+          gender: "",
+          article: "",
+          plural: "",
+          verbForms: "",
+          synonyms: "",
+          antonyms: "",
+          notes: "",
+          tags: [],
+          status: "new",
+          difficulty: 2,
+          interval: 0,
+          createdAt: 1,
+          updatedAt: 1,
+          nextReviewAt: 1,
+          reviewCount: 0,
+          correctCount: 0,
+          incorrectCount: 0,
+          favorite: false,
+          type: "word",
+          separable: false,
+          reflexive: false,
+          preposition: "",
+          grammaticalCase: "",
+        });
+        tx.objectStore("decks").put({
+          id: "legacy-guest-deck",
+          title,
+          description: "",
+          language: "de",
+          tags: [],
+          wordIds: ["legacy-guest-word"],
+          createdAt: 1,
+          updatedAt: 1,
+          favorite: false,
+        });
+        tx.oncomplete = () => {
+          database.close();
+          resolve();
+        };
+        tx.onerror = () => reject(tx.error);
+      };
+    });
+  }, title);
   await login(page);
   await page.goto(`${base}/settings`);
   await page
@@ -320,7 +399,7 @@ test("guest library is imported explicitly and survives a second-device login", 
   console.log(
     "Prepared-catalog import metrics:",
     JSON.stringify({
-      localCards: 4876,
+      importedLegacyCards: 1,
       cloudRecords: stored.data.length,
       cloudJsonBytes: Buffer.byteLength(JSON.stringify(stored.data)),
       cloudCards: stored.data.filter((row) => row.kind === "words").length,
@@ -372,14 +451,14 @@ test("signing out updates another tab in the same browser", async ({
   await page.goto(`${base}/settings`);
   await page.getByRole("button", { name: "Выйти", exact: true }).last().click();
   await expect(
-    other.getByRole("link", { name: "Войти", exact: true }).last(),
+    other.getByRole("heading", { name: "Войти", exact: true }),
   ).toBeVisible();
   await expect(
     other.getByRole("button", { name: "Выйти", exact: true }),
   ).toHaveCount(0);
 });
 
-test("an expired revoked session returns to the guest workspace and can sign in again", async ({
+test("an expired revoked session returns to login and can sign in again", async ({
   page,
 }) => {
   await login(page);
@@ -413,7 +492,7 @@ test("an expired revoked session returns to the guest workspace and can sign in 
   await page.reload();
   await page.goto(`${base}/settings`);
   await expect(
-    page.getByRole("link", { name: "Войти", exact: true }).last(),
+    page.getByRole("heading", { name: "Войти", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Выйти", exact: true }),

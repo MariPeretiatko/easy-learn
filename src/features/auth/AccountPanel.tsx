@@ -22,6 +22,24 @@ export function AccountPanel() {
       database.owner ? database.conflicts.orderBy("createdAt").toArray() : [],
     [database.name],
   );
+  const failures = useLiveQuery(async () => {
+    if (!database.owner) return [];
+    const items = await database.syncMeta
+      .where("key")
+      .startsWith("failure:")
+      .toArray();
+    return Promise.all(
+      items.map(async (item) => ({
+        key: item.key,
+        detail: item.value as {
+          operationId: string;
+          code: string;
+          message: string;
+        },
+        operation: await database.outbox.get(item.key.slice(8)),
+      })),
+    );
+  }, [database.name]);
   const queued = useLiveQuery(
     () => (database.owner ? database.outbox.count() : 0),
     [database.name],
@@ -267,6 +285,41 @@ export function AccountPanel() {
               </button>
             </div>
           )}
+          {failures
+            ?.filter((failure) => failure.operation)
+            .map((failure) => (
+              <article className="notice" key={failure.key}>
+                <h3>Операция требует внимания</h3>
+                <p role="alert">
+                  {failure.detail.message} (код {failure.detail.code})
+                </p>
+                <p className="hint">
+                  Операция {failure.detail.operationId}. Связанные изменения
+                  остаются на устройстве; независимые отправляются дальше.
+                </p>
+                <button
+                  onClick={() =>
+                    download(
+                      "easy-learn-pending-operation.json",
+                      JSON.stringify(failure.operation, null, 2),
+                    )
+                  }
+                >
+                  Скачать операцию
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    void perform(async () => {
+                      await database.syncMeta.delete(failure.key);
+                      await syncNow();
+                    })
+                  }
+                >
+                  Повторить отправку
+                </button>
+              </article>
+            ))}
           {conflicts?.map((conflict) => (
             <article key={conflict.id} className="notice">
               <h3>Изменения с двух устройств</h3>
@@ -437,10 +490,25 @@ export function AccountPanel() {
                     "delete-account",
                     { body: {}, headers: { Authorization: `Bearer ${token}` } },
                   );
-                  if (error || !data?.ok)
-                    throw new Error(
-                      "Не удалось удалить аккаунт. Проверьте подключение серверной функции.",
+                  if (error || !data?.ok) {
+                    const pending = await supabase!.rpc(
+                      "account_deletion_pending",
                     );
+                    if (pending.data) {
+                      await database.syncMeta.put({
+                        key: "accountDeletionPending",
+                        value: true,
+                      });
+                      window.dispatchEvent(
+                        new Event("account-deletion-requested"),
+                      );
+                    }
+                    throw new Error(
+                      pending.data
+                        ? "Удаление начато и будет продолжено. Аккаунт закрыт для работы."
+                        : "Не удалось начать удаление аккаунта. Повторите позже.",
+                    );
+                  }
                   if (useAccount.getState().user?.id === user.id)
                     await signOut();
                   await database.delete();

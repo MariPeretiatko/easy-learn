@@ -1,3 +1,4 @@
+import { compareLibraryCollections } from "../services/recent";
 import { useSubjectNames } from "../hooks/useSubjectNames";
 import { useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -198,28 +199,15 @@ export function LibraryPage() {
                         ?.language ??
                       settings.learningLanguage) === settings.learningLanguage),
               )
-              .sort((a, b) => {
-                if (tab === "modules" && !level) {
-                  const aFolder =
-                    data.collections.find((folder) => folder.id === a.folderId)
-                      ?.title ?? "";
-                  const bFolder =
-                    data.collections.find((folder) => folder.id === b.folderId)
-                      ?.title ?? "";
-                  const folderOrder = aFolder.localeCompare(bFolder, "ru", {
-                    numeric: true,
-                  });
-                  if (folderOrder) return folderOrder;
-                }
-                const titleOrder = a.title.localeCompare(b.title, "ru", {
-                  numeric: true,
-                });
-                return sort === "title"
-                  ? titleOrder
-                  : (sort === "created"
-                      ? b.createdAt - a.createdAt
-                      : b.updatedAt - a.updatedAt) || titleOrder;
-              })
+              .sort((a, b) =>
+                compareLibraryCollections(
+                  a,
+                  b,
+                  sort,
+                  data.recent,
+                  data.collections,
+                ),
+              )
               .map((c) => (
                 <Link
                   className="collection-card"

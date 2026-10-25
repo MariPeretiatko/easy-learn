@@ -1,11 +1,10 @@
 /* Order is intentional: foundation, shared controls, feature surfaces and responsive layout. */
-@import "./base.css";
-@import "./controls.css";
 @import "./flashcards.css";
 @import "./reader.css";
 @import "./video.css";
 @import "./statistics.css";
 @import "./offline.css";
+@import "./account.css";
 @import "./theme.css";
 @import "./surfaces.css";
 @import "./layout.css";

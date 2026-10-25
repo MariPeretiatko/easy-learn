@@ -164,3 +164,40 @@ it("preserves commit order when several operations share the same clock time", a
     clock.mockRestore();
   }
 });
+it("quarantines rejected data while sending independent operations and retaining dependencies", async () => {
+  await database.words.add(newWord({ id: "bad", term: "bad" }));
+  await database.words.update("bad", { notes: "dependent" });
+  await database.words.add(newWord({ id: "good", term: "good" }));
+  const sent: string[] = [];
+  const remote = {
+    pull: async () => [] as RemoteRecord[],
+    push: async (op: PendingOperation) => {
+      const key = op.changes[0].key;
+      sent.push(key);
+      if (key === "bad") throw { code: "23514", message: "Invalid card" };
+      return {
+        ok: true,
+        records: op.changes.map((change) => ({
+          kind: change.table,
+          record_id: change.key,
+          data: change.value,
+          deleted: false,
+          revision: 1,
+        })),
+      };
+    },
+  };
+  await synchronize(database, remote);
+  expect(sent).toEqual(["bad", "good"]);
+  expect(await database.outbox.count()).toBe(2);
+  const failed = await database.syncMeta
+    .where("key")
+    .startsWith("failure:")
+    .first();
+  expect(failed?.value).toMatchObject({ code: "23514", permanent: true });
+  await synchronize(database, remote);
+  expect(sent).toEqual(["bad", "good"]);
+  await database.syncMeta.delete(failed!.key);
+  await synchronize(database, remote);
+  expect(sent).toEqual(["bad", "good", "bad"]);
+});

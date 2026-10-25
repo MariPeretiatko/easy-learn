@@ -31,7 +31,7 @@ test("home, library and folder creation stay simple on desktop and mobile", asyn
     await page
       .getByRole("button", { name: "Создать папку", exact: true })
       .click();
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByRole("dialog", { name: "Создать папку" });
     await expect(dialog.locator("input")).toHaveCount(1);
     await expect(dialog.locator("textarea, select")).toHaveCount(0);
     await dialog.getByLabel("Название", { exact: true }).fill(`Папка ${width}`);

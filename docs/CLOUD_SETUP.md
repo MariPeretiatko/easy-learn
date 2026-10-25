@@ -5,8 +5,8 @@
 - Репозиторий: https://github.com/MariPeretiatko/easy-learn
 - Сайт: https://easy-learn.pages.dev
 - Supabase: `https://kxwrdfsesojeveegtakj.supabase.co`, project ref `kxwrdfsesojeveegtakj`.
-- Проверка 25 октября 2026: сайт отвечает HTTP 200, но опубликованный JS `index-CLcUnBQ5.js` и меню профиля соответствуют прежней локальной версии без входа/регистрации. Локальные облачные изменения пока не закоммичены и не отправлены в `main`; локальный HEAD совпадает с удалённым.
-- Supabase Auth отвечает HTTP 200, email-регистрация включена, подтверждение email требуется. Анонимные проверки Data API возвращают PGRST205 для `sync_records` и PGRST202 для `apply_sync_batch`: применение SQL и доступность схемы ещё нужно подтвердить.
+- Повторная проверка 25 октября 2026: код регистрации уже отправлен в `main` (коммит `8175b45`, `login/regist`) и опубликован. `/login` открывается, но показывает «Облачный аккаунт пока не подключён» и отключённую кнопку входа: сборка `index-GveC65bA.js` не содержит URL/публичного ключа проекта. Следующий шаг — переменные `VITE_SUPABASE_URL` и `VITE_SUPABASE_PUBLISHABLE_KEY` для Production в Cloudflare Pages и новая сборка.
+- Supabase Auth отвечает HTTP 200, email-регистрация включена, подтверждение email требуется. После выполнения SQL пользователем повторная проверка Data API возвращает HTTP 401 / SQL 42501 для `sync_records` и `apply_sync_batch`: объекты доступны в кэше схемы, доступ без входа запрещён ожидаемыми правами. Вошедшие пользователи и доставка писем на внешнем проекте ещё не проверены.
 
 В Supabase Auth → URL Configuration задать:
 

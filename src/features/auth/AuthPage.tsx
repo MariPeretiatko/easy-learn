@@ -26,6 +26,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
   const navigate = useNavigate(),
     location = useLocation();
   const recovery = useAccount((s) => s.recovery);
+  const user = useAccount((s) => s.user);
   const returnTo = safeReturnTo(
     new URLSearchParams(location.search).get("next"),
   );
@@ -60,6 +61,10 @@ export function AuthPage({ mode }: { mode: Mode }) {
       active = false;
     };
   }, [mode, location.search, navigate, returnTo]);
+  useEffect(() => {
+    if (user && !recovery && (mode === "login" || mode === "register"))
+      navigate(returnTo, { replace: true });
+  }, [user, recovery, mode, navigate, returnTo]);
   const title = {
     login: "Войти",
     register: "Регистрация",
@@ -135,141 +140,158 @@ export function AuthPage({ mode }: { mode: Mode }) {
     }
   }
   return (
-    <div className="auth-page panel">
-      <h1>{title}</h1>
-      {cloudConfigurationError && (
-        <p className="notice">{cloudConfigurationError}</p>
-      )}
-      {message && <p role="status">{message}</p>}
-      {error && (
-        <p className="notice" role="alert">
-          {error}
-        </p>
-      )}
-      {mode === "reset-password" && !recovery && (
-        <p role="alert">
-          Откройте действительную ссылку восстановления из письма.
-        </p>
-      )}
-      {mode !== "callback" && !sent && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void submit();
-          }}
-        >
-          {mode === "register" && (
-            <label>
-              Имя
-              <input
-                required
-                maxLength={80}
-                autoComplete="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </label>
-          )}
-          {mode !== "reset-password" && (
-            <label>
-              Email
-              <input
-                type="email"
-                required
-                maxLength={254}
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </label>
-          )}
-          {mode !== "forgot-password" && (
-            <>
+    <main className="auth-screen">
+      <section className="auth-card" aria-labelledby="auth-title">
+        <Link className="auth-brand" to="/login">
+          Easy Learn
+        </Link>
+        <p className="auth-intro">Ваши знания. Ваш темп.</p>
+        <h1 id="auth-title">{title}</h1>
+        {cloudConfigurationError && (
+          <p className="notice">{cloudConfigurationError}</p>
+        )}
+        {message && <p role="status">{message}</p>}
+        {error && (
+          <p className="notice" role="alert">
+            {error}
+          </p>
+        )}
+        {mode === "reset-password" && !recovery && (
+          <p role="alert">
+            Откройте действительную ссылку восстановления из письма.
+          </p>
+        )}
+        {mode !== "callback" && !sent && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void submit();
+            }}
+          >
+            {mode === "register" && (
               <label>
-                Пароль
+                Имя
                 <input
-                  type={visible ? "text" : "password"}
                   required
-                  minLength={mode === "login" ? 1 : 8}
-                  maxLength={128}
-                  autoComplete={
-                    mode === "login" ? "current-password" : "new-password"
-                  }
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  maxLength={80}
+                  autoComplete="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                 />
               </label>
-              {mode !== "login" && (
+            )}
+            {mode !== "reset-password" && (
+              <label>
+                Email
+                <input
+                  type="email"
+                  required
+                  maxLength={254}
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </label>
+            )}
+            {mode !== "forgot-password" && (
+              <>
                 <label>
-                  Повторите пароль
+                  Пароль
                   <input
                     type={visible ? "text" : "password"}
                     required
-                    minLength={8}
-                    autoComplete="new-password"
-                    value={confirmation}
-                    onChange={(e) => setConfirmation(e.target.value)}
+                    minLength={mode === "login" ? 1 : 8}
+                    maxLength={128}
+                    autoComplete={
+                      mode === "login" ? "current-password" : "new-password"
+                    }
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                   />
                 </label>
-              )}
-              <label className="check-label">
-                <input
-                  type="checkbox"
-                  checked={visible}
-                  onChange={(e) => setVisible(e.target.checked)}
-                />
-                Показать пароль
-              </label>
-              {mode !== "login" && <p className="hint">Не менее 8 символов.</p>}
-            </>
-          )}
+                {mode !== "login" && (
+                  <label>
+                    Повторите пароль
+                    <input
+                      type={visible ? "text" : "password"}
+                      required
+                      minLength={8}
+                      autoComplete="new-password"
+                      value={confirmation}
+                      onChange={(e) => setConfirmation(e.target.value)}
+                    />
+                  </label>
+                )}
+                <label className="check-label">
+                  <input
+                    type="checkbox"
+                    checked={visible}
+                    onChange={(e) => setVisible(e.target.checked)}
+                  />
+                  Показать пароль
+                </label>
+                {mode !== "login" && (
+                  <p className="hint">Не менее 8 символов.</p>
+                )}
+              </>
+            )}
+            <button
+              className="button"
+              disabled={
+                busy || !supabase || (mode === "reset-password" && !recovery)
+              }
+            >
+              {busy ? "Подождите…" : title}
+            </button>
+          </form>
+        )}
+        {sent && (
           <button
-            className="button"
-            disabled={
-              busy || !supabase || (mode === "reset-password" && !recovery)
-            }
+            className="button secondary"
+            disabled={busy}
+            onClick={() => {
+              if (Date.now() < resendAfter) {
+                setError("Повторное письмо можно запросить через минуту.");
+                return;
+              }
+              setBusy(true);
+              setError("");
+              void authClient()
+                .auth.resend({
+                  type: "signup",
+                  email: email.trim(),
+                  options: { emailRedirectTo: callback },
+                })
+                .then(({ error }) => {
+                  if (error) setError(authError(error));
+                  else {
+                    setResendAfter(Date.now() + 60000);
+                    setMessage("Письмо отправлено повторно. Проверьте почту.");
+                  }
+                })
+                .catch((e) => setError(authError(e)))
+                .finally(() => setBusy(false));
+            }}
           >
-            {busy ? "Подождите…" : title}
+            Отправить письмо ещё раз
           </button>
-        </form>
-      )}
-      {sent && (
-        <button
-          className="button secondary"
-          disabled={busy}
-          onClick={() => {
-            if (Date.now() < resendAfter) {
-              setError("Повторное письмо можно запросить через минуту.");
-              return;
-            }
-            setBusy(true);
-            setError("");
-            void authClient()
-              .auth.resend({
-                type: "signup",
-                email: email.trim(),
-                options: { emailRedirectTo: callback },
-              })
-              .then(({ error }) => {
-                if (error) setError(authError(error));
-                else {
-                  setResendAfter(Date.now() + 60000);
-                  setMessage("Письмо отправлено повторно. Проверьте почту.");
-                }
-              })
-              .catch((e) => setError(authError(e)))
-              .finally(() => setBusy(false));
-          }}
-        >
-          Отправить письмо ещё раз
-        </button>
-      )}
-      <nav aria-label="Аккаунт">
-        {mode !== "login" && <Link to="/login">Уже есть аккаунт? Войти</Link>}
-        {mode !== "register" && <Link to="/register">Создать аккаунт</Link>}
-        {mode === "login" && <Link to="/forgot-password">Забыли пароль?</Link>}
-        <Link to="/library">Локальная библиотека</Link>
-      </nav>
-    </div>
+        )}
+        <nav aria-label="Аккаунт">
+          {mode !== "login" && (
+            <Link to={`/login?next=${encodeURIComponent(returnTo)}`}>
+              Уже есть аккаунт? Войти
+            </Link>
+          )}
+          {mode !== "register" && (
+            <Link to={`/register?next=${encodeURIComponent(returnTo)}`}>
+              Создать аккаунт
+            </Link>
+          )}
+          {mode === "login" && (
+            <Link to="/forgot-password">Забыли пароль?</Link>
+          )}
+        </nav>
+      </section>
+    </main>
   );
 }

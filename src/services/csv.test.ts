@@ -19,3 +19,22 @@ it("escapes spreadsheet formula cells", () =>
   expect(vocabularyCSV([{ term: "=CMD()", translation: "test" }])).toContain(
     "'=CMD()",
   ));
+it("detects TSV and semicolon tables with commas inside values", () => {
+  expect(parseCSV("Haus\tдом, здание\nBaum\tдерево")[0]).toMatchObject({
+    term: "Haus",
+    translation: "дом, здание",
+  });
+  expect(parseCSV("word;translation\nHaus;дом, здание")[0].translation).toBe(
+    "дом, здание",
+  );
+  expect(parseCSV('word,translation\n"a;b","x,y"')[0]).toMatchObject({
+    term: "a;b",
+    translation: "x,y",
+  });
+});
+it("detects separators across multiline quoted fields and supports explicit separators", () => {
+  expect(
+    parseCSV('word\ttranslation\nHaus\t"дом,\nздание"')[0].translation,
+  ).toBe("дом,\nздание");
+  expect(parseCSV("Haus;дом, здание", ";")[0].translation).toBe("дом, здание");
+});

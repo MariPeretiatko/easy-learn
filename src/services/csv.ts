@@ -4,15 +4,42 @@ export interface CsvWord {
   example?: string;
   tags?: string[];
 }
-export function parseCSV(text: string): CsvWord[] {
+function detectDelimiter(source: string) {
+  // Count separators only outside quoted fields, across complete logical rows.
+  const candidates = ["\t", ";", ","];
+  const counts = candidates.map(() => [0]);
+  let quoted = false,
+    row = 0;
+  for (let i = 0; i < source.length && row < 20; i++) {
+    const char = source[i];
+    if (char === '"') {
+      if (quoted && source[i + 1] === '"') i++;
+      else quoted = !quoted;
+    } else if (!quoted && char === "\n") {
+      if (counts.some((values) => values[row] > 0)) {
+        row++;
+        counts.forEach((values) => values.push(0));
+      }
+    } else if (!quoted) {
+      const index = candidates.indexOf(char);
+      if (index >= 0) counts[index][row]++;
+    }
+  }
+  const scores = counts.map((values, index) => {
+    const used = values.filter((value) => value > 0);
+    if (!used.length) return -1;
+    const consistent =
+      used.filter((value) => value === used[0]).length / used.length;
+    // Tabs are unambiguous in exported tables; commas commonly occur in translations.
+    return (
+      used.length * consistent * 100 + (index === 0 ? 3 : index === 1 ? 2 : 1)
+    );
+  });
+  return candidates[scores.indexOf(Math.max(...scores))];
+}
+export function parseCSV(text: string, separator?: string): CsvWord[] {
   const source = text.replace(/^\uFEFF/, "");
-  const first = source.split(/\r?\n/)[0] ?? "";
-  const delimiter =
-    first.includes(";") && !first.includes(",")
-      ? ";"
-      : first.includes("\t") && !first.includes(",")
-        ? "\t"
-        : ",";
+  const delimiter = separator ?? detectDelimiter(source);
   const rows: string[][] = [];
   let row: string[] = [],
     value = "",
