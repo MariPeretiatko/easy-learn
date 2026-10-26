@@ -26,14 +26,34 @@ export function createQuestion(
   reverse = false,
 ): Question {
   const answer = reverse ? word.term : word.translation;
+  const accepted = [
+    answer,
+    ...(reverse
+      ? (word.acceptedTerms ?? [])
+      : (word.acceptedTranslations ?? [])),
+  ];
   const others = shuffled(
     [
       ...new Set(
         words
-          .filter((item) => item.id !== word.id)
+          .filter(
+            (item) =>
+              item.id !== word.id &&
+              (reverse
+                ? item.translation !== word.translation
+                : item.term !== word.term),
+          )
           .map((item) => (reverse ? item.term : item.translation)),
       ),
-    ].filter((value) => value !== answer),
+    ].filter(
+      (value) =>
+        !accepted.some((valid) =>
+          isCorrect(value, valid, {
+            language: reverse ? word.language : word.nativeLanguage,
+            strictAnswerArticles: false,
+          }),
+        ),
+    ),
   );
   const options = shuffled([answer, ...others.slice(0, 3)]);
   if (type === "choice" && options.length < 2) type = "typing";
@@ -83,12 +103,7 @@ export function isCorrect(
   rules: AnswerRules = {},
 ) {
   const clean = (value: string) => {
-    let result = value
-      .normalize("NFC")
-      .trim()
-      .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "")
-      .replace(/[.,!?;:]/g, "")
-      .replace(/\s+/g, " ");
+    let result = value.normalize("NFC").trim().replace(/\s+/g, " ");
     if (rules.language === "de" && rules.strictAnswerArticles === false)
       result = result.replace(
         /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines)\s+/i,

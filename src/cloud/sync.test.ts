@@ -201,3 +201,108 @@ it("quarantines rejected data while sending independent operations and retaining
   await synchronize(database, remote);
   expect(sent).toEqual(["bad", "good", "bad"]);
 });
+it("pages a large queue without scanning whole outbox or unrelated sync metadata", async () => {
+  for (let index = 0; index < 105; index++)
+    await database.words.add(
+      newWord({
+        id: `word-${index}`,
+        term: `Word ${index}`,
+        translation: "слово",
+      }),
+    );
+  const fullQueue = vi
+    .spyOn(database.outbox, "toArray")
+    .mockRejectedValue(new Error("Unbounded queue scan"));
+  const fullMetadata = vi
+    .spyOn(database.syncMeta, "toArray")
+    .mockRejectedValue(new Error("Unbounded metadata scan"));
+  let sent = 0;
+  await synchronize(database, {
+    pull: async () => [],
+    push: async (op) => {
+      sent++;
+      return {
+        ok: true,
+        records: op.changes.map((change) => ({
+          kind: change.table,
+          record_id: change.key,
+          data: change.value,
+          deleted: change.value === null,
+          revision: sent,
+        })),
+      };
+    },
+  });
+  expect(sent).toBe(105);
+  expect(await database.outbox.count()).toBe(0);
+  fullQueue.mockRestore();
+  fullMetadata.mockRestore();
+});
+it("preserves edits created while a previous version is being acknowledged", async () => {
+  await database.words.add(
+    newWord({ id: "live", term: "Haus", translation: "дом" }),
+  );
+  let first = true;
+  const remote = {
+    pull: async () => [] as RemoteRecord[],
+    push: async (op: PendingOperation) => {
+      if (first) {
+        first = false;
+        await database.words.update("live", { notes: "typed during upload" });
+      }
+      return {
+        ok: true,
+        records: op.changes.map((change) => ({
+          kind: change.table,
+          record_id: change.key,
+          data: change.value,
+          revision: 1,
+          deleted: false,
+        })),
+      };
+    },
+  };
+  await synchronize(database, remote);
+  expect((await database.words.get("live"))?.notes).toBe("typed during upload");
+  expect(await database.outbox.count()).toBe(1);
+  await synchronize(database, remote);
+  expect((await database.words.get("live"))?.notes).toBe("typed during upload");
+  expect(await database.outbox.count()).toBe(0);
+});
+it("captures bulk changes with a constant number of metadata writes", async () => {
+  const isolated = new LearningDatabase(`test-${crypto.randomUUID()}`);
+  let metadataWrites = 0;
+  isolated.use({
+    stack: "dbcore",
+    name: "measure-metadata",
+    level: -1,
+    create: (down) => ({
+      ...down,
+      table: (name) => {
+        const table = down.table(name);
+        return {
+          ...table,
+          mutate: (request) => {
+            if (name === "syncMeta") metadataWrites++;
+            return table.mutate(request);
+          },
+        };
+      },
+    }),
+  });
+  try {
+    await isolated.open();
+    await isolated.words.bulkAdd(
+      Array.from({ length: 1000 }, (_, i) =>
+        newWord({ id: `bulk-${i}`, term: String(i), translation: "слово" }),
+      ),
+    );
+    expect(metadataWrites).toBe(2);
+    const operations = await isolated.outbox.toArray();
+    expect(operations).toHaveLength(1);
+    expect(operations[0].changes).toHaveLength(1000);
+    expect(operations[0].recordKeys).toHaveLength(1000);
+  } finally {
+    await isolated.delete();
+  }
+});

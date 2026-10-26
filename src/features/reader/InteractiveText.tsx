@@ -1,35 +1,32 @@
 import { useState, type CSSProperties } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "../../db/database";
 import { lemma } from "../../services/translation";
 import { normalize } from "../../utils/format";
-import type { Language } from "../../types";
+import type { Language, Word, WordStatus } from "../../types";
 export function tokenize(content: string) {
   return content.split(/([\p{L}\p{M}]+(?:['’\-][\p{L}\p{M}]+)*)/gu);
+}
+export function wordStatusLookup(words: Word[]) {
+  return new Map<string, WordStatus>(
+    words.flatMap((word) => [
+      [normalize(word.term), word.status],
+      [normalize(word.term.replace(/^(der|die|das)\s+/i, "")), word.status],
+    ]),
+  );
 }
 export function InteractiveText({
   content,
   language,
   onSelect,
   style,
+  vocabulary,
 }: {
   content: string;
   language: Language;
   onSelect: (text: string) => void;
   style?: CSSProperties;
+  vocabulary: ReadonlyMap<string, WordStatus>;
 }) {
-  const words =
-    useLiveQuery(
-      () => db.words.where("language").equals(language).toArray(),
-      [language],
-    ) ?? [];
   const [selection, setSelection] = useState("");
-  const lookup = new Map(
-    words.flatMap((w) => [
-      [normalize(w.term), w],
-      [normalize(w.term.replace(/^(der|die|das)\s+/i, "")), w],
-    ]),
-  );
   return (
     <div className="interactive-container">
       <div
@@ -48,11 +45,11 @@ export function InteractiveText({
       >
         {tokenize(content).map((token, i) => {
           if (!/[\p{L}]/u.test(token)) return <span key={i}>{token}</span>;
-          const word = lookup.get(normalize(lemma(token, language)));
+          const status = vocabulary.get(normalize(lemma(token, language)));
           return (
             <button
               key={i}
-              className={`text-word ${word?.status ?? "unknown"}`}
+              className={`text-word ${status ?? "unknown"}`}
               onClick={() => {
                 if (!window.getSelection()?.toString().trim()) onSelect(token);
               }}

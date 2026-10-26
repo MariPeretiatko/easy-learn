@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { PageHeading, Loading, Empty, SearchInput } from "../components/UI";
 import { useData } from "../hooks/useData";
@@ -13,9 +14,16 @@ export function SearchPage() {
   ]);
   const [params, setParams] = useSearchParams();
   const query = params.get("q") ?? "";
+  const [expanded, setExpanded] = useState<{
+    query: string;
+    limits: Record<string, number>;
+  }>({ query: "", limits: {} });
+  const limit = (title: string) =>
+    expanded.query === query ? (expanded.limits[title] ?? 50) : 50;
   if (!data) return <Loading />;
   const matches = (text: string) =>
-    query.trim() && text.toLowerCase().includes(query.toLowerCase());
+    query.trim() &&
+    text.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
   const groups = [
     {
       title: "Черновики",
@@ -128,7 +136,7 @@ export function SearchPage() {
                 {group.title}{" "}
                 <span className="badge">{group.items.length}</span>
               </h2>
-              {group.items.slice(0, 50).map((item) => (
+              {group.items.slice(0, limit(group.title)).map((item) => (
                 <Link className="continue-row" to={item.path} key={item.id}>
                   <div>
                     <strong>{item.title}</strong>
@@ -137,6 +145,24 @@ export function SearchPage() {
                   <span>↗</span>
                 </Link>
               ))}
+              {group.items.length > limit(group.title) && (
+                <button
+                  className="button secondary"
+                  onClick={() =>
+                    setExpanded((previous) => ({
+                      query,
+                      limits: {
+                        ...(previous.query === query ? previous.limits : {}),
+                        [group.title]: limit(group.title) + 50,
+                      },
+                    }))
+                  }
+                >
+                  Показать ещё: {group.title.toLocaleLowerCase()} (
+                  {Math.min(limit(group.title), group.items.length)} из{" "}
+                  {group.items.length})
+                </button>
+              )}
             </section>
           ))}
       </div>

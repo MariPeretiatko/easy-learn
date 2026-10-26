@@ -23,6 +23,7 @@ export interface Change {
   value: RecordValue | null;
 }
 export interface PendingOperation {
+  recordKeys?: string[];
   order: number;
   id: string;
   createdAt: number;

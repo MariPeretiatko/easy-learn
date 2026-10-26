@@ -3,6 +3,20 @@ import type { RecordValue } from "./types";
 const bucket = "card-images";
 const pending = new Map<string, Promise<string>>();
 const downloads = new Map<string, Promise<string>>();
+let activeTasks = 0;
+const waiters: (() => void)[] = [];
+async function imageTask<T>(action: () => Promise<T>): Promise<T> {
+  if (activeTasks >= 4)
+    await new Promise<void>((resolve) => waiters.push(resolve));
+  else activeTasks++;
+  try {
+    return await action();
+  } finally {
+    const next = waiters.shift();
+    if (next) next();
+    else activeTasks--;
+  }
+}
 async function uploadImage(client: CloudClient, owner: string, data: string) {
   const blob = await (await fetch(data)).blob();
   if (
@@ -64,7 +78,7 @@ export async function transformImages(
       direction === "upload" &&
       /^data:image\//.test(value)
     )
-      return uploadImage(client, owner, value);
+      return imageTask(() => uploadImage(client, owner, value));
     if (
       typeof value === "string" &&
       direction === "download" &&
@@ -73,7 +87,11 @@ export async function transformImages(
       const key = `${owner}:${value}`;
       let request = downloads.get(key);
       if (!request) {
-        request = downloadImage(client, owner, value.slice(10));
+        request = imageTask(() =>
+          downloadImage(client, owner, value.slice(10)),
+        );
+        if (downloads.size >= 16)
+          downloads.delete(downloads.keys().next().value!);
         downloads.set(key, request);
         request.catch(() => downloads.delete(key));
       }

@@ -69,10 +69,6 @@ export function DataSettings() {
               const file = e.target.files?.[0];
               e.target.value = "";
               if (file) {
-                if (file.size > 20_000_000) {
-                  reportError(new Error("Максимальный размер копии — 20 МБ"));
-                  return;
-                }
                 void file
                   .text()
                   .then((text) => setBackup(parseBackup(text)))

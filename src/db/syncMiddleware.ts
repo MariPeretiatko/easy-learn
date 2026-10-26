@@ -10,6 +10,7 @@ interface TrackedTransaction extends DBCoreTransaction {
   skipCloud?: boolean;
   resetProgress?: boolean;
   operationReady?: Promise<PendingOperation>;
+  changeIndex?: Map<string, Change>;
   reviewEvent?: boolean;
 }
 export function markLocalOnly(transaction: IDBTransaction) {
@@ -114,28 +115,34 @@ export function syncMiddleware(owner: string | null) {
                     };
                   })();
                 const op = await trans.operationReady;
-                for (const change of changes) {
-                  if (change.table === "words") {
-                    const marked = await down
-                      .table("syncMeta")
-                      .mutate({
-                        trans,
-                        type: "put",
-                        values: [
-                          { key: `personal:words:${change.key}`, value: true },
-                        ],
-                      });
-                    if (marked.numFailures)
-                      throw new Error(
-                        "Не удалось сохранить владельца изменения",
-                      );
-                  }
-                  const prior = op.changes.find(
-                    (c) => c.table === change.table && c.key === change.key,
-                  );
-                  if (prior) prior.value = change.value;
-                  else op.changes.push(change);
+                const personal = changes
+                  .filter((change) => change.table === "words")
+                  .map((change) => ({
+                    key: `personal:words:${change.key}`,
+                    value: true,
+                  }));
+                if (personal.length) {
+                  const marked = await down
+                    .table("syncMeta")
+                    .mutate({ trans, type: "put", values: personal });
+                  if (marked.numFailures)
+                    throw new Error("Не удалось сохранить владельца изменения");
                 }
+                const index = (trans.changeIndex ??= new Map<string, Change>());
+                for (const change of changes) {
+                  const key = `${change.table}:${change.key}`;
+                  const prior = index.get(key);
+                  if (prior) {
+                    prior.value = change.value;
+                    if (change.resetProgress) prior.resetProgress = true;
+                  } else {
+                    op.changes.push(change);
+                    index.set(key, change);
+                  }
+                }
+                op.recordKeys = op.changes.map(
+                  (change) => `${change.table}:${change.key}`,
+                );
                 const queued = await down
                   .table("outbox")
                   .mutate({ trans, type: "put", values: [op] });

@@ -47,8 +47,8 @@ export async function matchingWord(
 ) {
   const identity = wordIdentity(word);
   return db.words
-    .where("language")
-    .equals(word.language)
+    .where("[language+nativeLanguage]")
+    .equals([word.language, word.nativeLanguage])
     .filter(
       (candidate) =>
         candidate.id !== exceptId && wordIdentity(candidate) === identity,
@@ -71,7 +71,8 @@ export const WordRepository = {
           );
         if (exists && exists.language !== word.language) {
           const linked = await db.decks
-            .filter((deck) => deck.wordIds.includes(word.id))
+            .where("wordIds")
+            .equals(word.id)
             .count();
           if (linked)
             throw new Error(
@@ -136,12 +137,19 @@ export const WordRepository = {
       async () => {
         await db.words.bulkDelete(ids);
         await db.reviews.where("wordId").anyOf(ids).delete();
-        await db.recent
-          .filter((r) => r.kind === "vocabulary" && ids.includes(r.id))
-          .delete();
-        await db.decks.toCollection().modify((d) => {
-          d.wordIds = d.wordIds.filter((id) => !ids.includes(id));
-        });
+        await db.recent.bulkDelete(ids.map((id) => `vocabulary/${id}`));
+        const removed = new Set(ids);
+        const decks = await db.decks
+          .where("wordIds")
+          .anyOf(ids)
+          .distinct()
+          .toArray();
+        await db.decks.bulkPut(
+          decks.map((deck) => ({
+            ...deck,
+            wordIds: deck.wordIds.filter((id) => !removed.has(id)),
+          })),
+        );
       },
     );
   },
@@ -184,11 +192,14 @@ export const DeckRepository = {
       "rw",
       [db.decks, db.recent, db.collections, db.drafts],
       async () => {
-        await db.collections.toCollection().modify((collection) => {
-          collection.deckIds = collection.deckIds.filter(
-            (deckId) => deckId !== id,
-          );
-        });
+        await db.collections
+          .where("deckIds")
+          .equals(id)
+          .modify((collection) => {
+            collection.deckIds = collection.deckIds.filter(
+              (deckId) => deckId !== id,
+            );
+          });
         await db.drafts.where("sourceDeckId").equals(id).delete();
         await db.decks.delete(id);
         await db.recent.delete(`decks/${id}`);

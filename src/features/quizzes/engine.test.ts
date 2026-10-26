@@ -83,3 +83,34 @@ it("applies case and German article rules only to written answers", async () => 
   expect(isAnswerCorrect("der hund", choice)).toBe(false);
   expect(isAnswerCorrect("der Hund", choice)).toBe(true);
 });
+it("preserves meaningful signs, decimals and programming-language symbols", async () => {
+  const { isCorrect } = await import("./engine");
+  for (const [given, expected] of [
+    ["2", "-2"],
+    ["15", "1.5"],
+    ["C", "C++"],
+    ["15", "1,5"],
+  ])
+    expect(isCorrect(given, expected)).toBe(false);
+  expect(isCorrect("  C++  ", "C++")).toBe(true);
+});
+it("never uses an accepted alternative as a wrong option or boolean candidate", () => {
+  const word = newWord({
+    term: "learn",
+    translation: "учить",
+    acceptedTranslations: ["учиться"],
+  });
+  const words = [
+    word,
+    newWord({ term: "study", translation: "учиться" }),
+    newWord({ term: "read", translation: "читать" }),
+  ];
+  for (let i = 0; i < 20; i++) {
+    expect(createQuestion(word, words, "choice").options).not.toContain(
+      "учиться",
+    );
+    expect(createQuestion(word, words, "boolean").candidate).not.toBe(
+      "учиться",
+    );
+  }
+});

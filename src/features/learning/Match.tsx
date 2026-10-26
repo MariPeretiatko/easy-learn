@@ -33,9 +33,21 @@ export function Match({ words, deckId }: { words: Word[]; deckId?: string }) {
   }, [tiles, complete]);
   useEffect(() => () => clearTimeout(delay.current), []);
   function start() {
-    const selected = shuffled([
-      ...new Map(words.map((w) => [w.translation, w])).values(),
-    ]).slice(0, 6);
+    const terms = new Set<string>(),
+      translations = new Set<string>();
+    const selected = shuffled(words)
+      .filter((word) => {
+        const term = word.term.normalize("NFC").trim().toLocaleLowerCase();
+        const translation = word.translation
+          .normalize("NFC")
+          .trim()
+          .toLocaleLowerCase();
+        if (terms.has(term) || translations.has(translation)) return false;
+        terms.add(term);
+        translations.add(translation);
+        return true;
+      })
+      .slice(0, 6);
     setTiles(
       shuffled(
         selected.flatMap((w) => [

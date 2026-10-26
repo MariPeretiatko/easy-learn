@@ -24,7 +24,11 @@ import {
 } from "../components/UI";
 import { TextRepository, remember } from "../services/repositories";
 import { TextEditor } from "../features/reader/TextEditor";
-import { InteractiveText, tokenize } from "../features/reader/InteractiveText";
+import {
+  InteractiveText,
+  tokenize,
+  wordStatusLookup,
+} from "../features/reader/InteractiveText";
 import { WordPopup } from "../features/reader/WordPopup";
 import { lemma } from "../services/translation";
 import { normalize } from "../utils/format";
@@ -224,13 +228,8 @@ export function ReaderPage() {
   const unique = [
     ...new Set(tokens.map((t) => normalize(lemma(t, doc.language)))),
   ];
-  const vocabulary = new Map(
-    data.words
-      .filter((w) => w.language === doc.language)
-      .map((w) => [
-        normalize(w.term.replace(/^(der|die|das)\s+/i, "")),
-        w.status,
-      ]),
+  const vocabulary = wordStatusLookup(
+    data.words.filter((word) => word.language === doc.language),
   );
   const known = unique.filter((t) => vocabulary.get(t) === "mastered").length;
   const learning = unique.filter((t) =>
@@ -298,6 +297,7 @@ export function ReaderPage() {
           </span>
           <h2>{doc.title}</h2>
           <InteractiveText
+            vocabulary={vocabulary}
             content={doc.content}
             language={doc.language}
             onSelect={setSelected}

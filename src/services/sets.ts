@@ -1,8 +1,8 @@
 import { db } from "../db/database";
-import type { SetDraft } from "../types";
+import type { SetDraft, Word } from "../types";
 import { uid } from "../utils/format";
 import { newWord, wordIdentity } from "./wordModel";
-import { trackActivity, matchingWord } from "./repositories";
+import { trackActivity } from "./repositories";
 export async function publishDraft(draft: SetDraft) {
   if (!draft.title.trim()) throw new Error("Укажите название колоды");
   const cards = draft.cards.filter(
@@ -25,14 +25,33 @@ export async function publishDraft(draft: SetDraft) {
         throw new Error(
           "Изменение языка колоды недоступно: создайте новую колоду на нужном языке.",
         );
-      const wordIds: string[] = [];
+      const stored = await db.words
+        .where("[language+nativeLanguage]")
+        .equals([draft.language, draft.nativeLanguage])
+        .toArray();
+      const originals = await db.words.bulkGet(
+        cards.flatMap((card) => (card.wordId ? [card.wordId] : [])),
+      );
+      const byId = new Map(
+        [...stored, ...originals.filter((word): word is Word => !!word)].map(
+          (word) => [word.id, word],
+        ),
+      );
+      const byIdentity = new Map<string, Map<string, Word>>();
+      const index = (word: Word) => {
+        const key = wordIdentity(word),
+          bucket = byIdentity.get(key) ?? new Map<string, Word>();
+        bucket.set(word.id, word);
+        byIdentity.set(key, bucket);
+      };
+      stored.forEach(index);
+      const changes = new Map<string, Word>();
+      const wordIds = new Set<string>();
       let added = 0;
       for (const card of cards) {
         if (!card.term.trim() || !card.definition.trim())
           throw new Error("Заполните термин и определение в каждой карточке");
-        const previous = card.wordId
-          ? await db.words.get(card.wordId)
-          : undefined;
+        const previous = card.wordId ? byId.get(card.wordId) : undefined;
         if (card.wordId && !previous)
           throw new Error("Термин был удалён. Откройте колоду заново.");
         const identity = {
@@ -41,7 +60,9 @@ export async function publishDraft(draft: SetDraft) {
           language: draft.language,
           nativeLanguage: draft.nativeLanguage,
         };
-        const duplicate = await matchingWord(identity, previous?.id);
+        const duplicate = [
+          ...(byIdentity.get(wordIdentity(identity))?.values() ?? []),
+        ].find((word) => word.id !== previous?.id);
         if (
           previous &&
           duplicate &&
@@ -51,7 +72,7 @@ export async function publishDraft(draft: SetDraft) {
             "Такая карточка уже есть в словаре. Удалите повтор и добавьте существующую карточку.",
           );
         if (!previous && duplicate) {
-          if (!wordIds.includes(duplicate.id)) wordIds.push(duplicate.id);
+          wordIds.add(duplicate.id);
           continue;
         }
         if (previous && previous.language !== draft.language)
@@ -77,10 +98,15 @@ export async function publishDraft(draft: SetDraft) {
           ...(!previous ? { sourceId: id, sourceType: "manual" as const } : {}),
           updatedAt: Date.now(),
         });
-        await db.words.put(word);
+        if (previous)
+          byIdentity.get(wordIdentity(previous))?.delete(previous.id);
+        index(word);
+        byId.set(word.id, word);
+        changes.set(word.id, word);
         if (!previous) added++;
-        if (!wordIds.includes(word.id)) wordIds.push(word.id);
+        wordIds.add(word.id);
       }
+      await db.words.bulkPut([...changes.values()]);
       await db.decks.put({
         ...(existing ?? {
           id,
@@ -91,7 +117,7 @@ export async function publishDraft(draft: SetDraft) {
         title: draft.title.trim(),
         description: draft.description,
         language: draft.language,
-        wordIds,
+        wordIds: [...wordIds],
         updatedAt: Date.now(),
       });
       if (added) await trackActivity({ wordsAdded: added });

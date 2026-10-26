@@ -1,3 +1,4 @@
+import { validateSubjects } from "../services/subjectValidation";
 import { markRestore } from "../db/syncMiddleware";
 import { LearningDatabase, currentDatabase } from "../db/database";
 import { createBackup, parseBackup, type Backup } from "../services/backup";
@@ -7,7 +8,7 @@ import { wordIdentity } from "../services/wordModel";
 import { equal } from "./types";
 import { uid } from "../utils/format";
 import { emptyDay } from "../services/repositories";
-import type { DailyStatistics } from "../types";
+import type { DailyStatistics, Language } from "../types";
 export async function guestBackup() {
   const guest = new LearningDatabase();
   try {
@@ -22,6 +23,49 @@ export async function guestBackup() {
 }
 export async function importGuestLibrary(input: Backup) {
   const backup = parseBackup(JSON.stringify(input));
+  const currentSubjects = useSettings.getState().settings.customSubjects;
+  const mergedSubjects = [...currentSubjects];
+  const subjectIds = new Map<string, string>();
+  const nameKey = (name: string) =>
+    name.normalize("NFC").trim().toLocaleLowerCase();
+  for (const subject of backup.settings.customSubjects) {
+    const same = mergedSubjects.find(
+      (item) =>
+        item.kind === subject.kind &&
+        nameKey(item.name) === nameKey(subject.name),
+    );
+    if (same) {
+      subjectIds.set(subject.id, same.id);
+      continue;
+    }
+    const id: Language = mergedSubjects.some((item) => item.id === subject.id)
+      ? (`${subject.kind === "topic" ? "topic" : "custom"}-${uid()}` as Language)
+      : subject.id;
+    let name = subject.name;
+    let suffix = 1;
+    while (mergedSubjects.some((item) => nameKey(item.name) === nameKey(name)))
+      name = `${subject.name.slice(0, 52)} — перенос ${suffix++}`;
+    mergedSubjects.push({ ...subject, id, name });
+    subjectIds.set(subject.id, id);
+  }
+  validateSubjects(mergedSubjects);
+  const language = (id: string) => (subjectIds.get(id) ?? id) as Language;
+  for (const record of [
+    ...backup.words,
+    ...backup.decks,
+    ...backup.drafts,
+    ...backup.texts,
+    ...backup.videos,
+  ])
+    record.language = language(record.language);
+  for (const record of [...backup.words, ...backup.drafts])
+    record.nativeLanguage = language(record.nativeLanguage);
+  for (const collection of backup.collections)
+    if (collection.language)
+      collection.language = language(collection.language);
+  backup.settings.customSubjects = mergedSubjects;
+  backup.settings.learningLanguage = language(backup.settings.learningLanguage);
+  backup.settings.nativeLanguage = language(backup.settings.nativeLanguage);
   const database = currentDatabase();
   if (!database.owner) throw new Error("Сначала войдите в аккаунт");
   if ((await database.syncMeta.get("guestImport"))?.value)
@@ -161,13 +205,7 @@ export async function importGuestLibrary(input: Backup) {
     const current = useSettings.getState().settings;
     const settings = {
       ...current,
-      customSubjects: [
-        ...new Map(
-          [...current.customSubjects, ...backup.settings.customSubjects].map(
-            (s) => [s.id, s],
-          ),
-        ).values(),
-      ],
+      customSubjects: mergedSubjects,
     };
     await database.preferences.put({ id: "settings", value: settings });
     await database.preferences.put({ id: journalKey, importedAt: Date.now() });

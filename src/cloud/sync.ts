@@ -106,6 +106,34 @@ export async function synchronize(
   remote: Transport,
   isActive = () => true,
 ) {
+  async function pendingKeys(keys: string[]) {
+    const found = new Set<string>();
+    if (keys.length)
+      await database.outbox
+        .where("recordKeys")
+        .anyOf(keys)
+        .eachKey((key) => {
+          found.add(String(key));
+        });
+    return found;
+  }
+  async function* queuedOperations() {
+    const ceiling = (await database.outbox.orderBy("order").last())?.order;
+    if (ceiling === undefined) return;
+    let after = -Infinity;
+    while (isActive()) {
+      const page = await database.outbox
+        .where("order")
+        .between(after, ceiling, false, true)
+        .limit(50)
+        .toArray();
+      if (!page.length) return;
+      for (const operation of page) {
+        after = operation.order;
+        yield operation;
+      }
+    }
+  }
   async function pull() {
     while (isActive()) {
       const cursor = Number(
@@ -116,16 +144,14 @@ export async function synchronize(
       if (!rows.length) break;
       await database.localOnly(async () => {
         const changed: Change[] = [];
-        const pending = (await database.outbox.toArray()).flatMap(
-          (op) => op.changes,
+        const pending = await pendingKeys(
+          rows.map((row) => `${row.kind}:${row.record_id}`),
         );
         for (const row of rows) {
           if (!dataTables.includes(row.kind))
             throw new Error("Неизвестная версия облачных данных");
           // Keep optimistic changes visible until their complete transaction is acknowledged.
-          if (
-            pending.some((c) => c.table === row.kind && c.key === row.record_id)
-          ) {
+          if (pending.has(`${row.kind}:${row.record_id}`)) {
             await database.syncMeta.put({
               key: `deferred:${row.kind}:${row.record_id}`,
               value: row,
@@ -139,6 +165,11 @@ export async function synchronize(
             value: row.deleted ? null : row.data,
           });
           if (row.deleted) {
+            if (
+              row.kind === "preferences" &&
+              row.record_id === "statisticsBaseline"
+            )
+              await database.syncMeta.delete("statisticsBaseline");
             await database.table(row.kind).delete(row.record_id);
             await database.syncMeta.put({
               key: `deleted:${row.kind}:${row.record_id}`,
@@ -175,7 +206,6 @@ export async function synchronize(
   }
   await pull();
   if (!isActive()) return;
-  const pending = await database.outbox.orderBy("order").toArray();
   const blockedKeys = new Set<string>();
   let hasConflict = false,
     hasFailure = false;
@@ -205,7 +235,7 @@ export async function synchronize(
         : !!value &&
           typeof value === "object" &&
           Object.values(value).some(referencesBlocked);
-  for (const operation of pending) {
+  for await (const operation of queuedOperations()) {
     if (
       operation.changes.some(
         (change) =>
@@ -296,16 +326,19 @@ export async function synchronize(
           key: `deferred:${row.kind}:${row.record_id}`,
           value: row,
         });
-      const remaining = (await database.outbox.toArray()).flatMap(
-        (op) => op.changes,
+      const deferred = await database.syncMeta
+        .where("key")
+        .startsWith("deferred:")
+        .toArray();
+      const remaining = await pendingKeys(
+        deferred.map((item) => {
+          const row = item.value as RemoteRecord;
+          return `${row.kind}:${row.record_id}`;
+        }),
       );
-      for (const item of await database.syncMeta.toArray()) {
-        if (!item.key.startsWith("deferred:")) continue;
+      for (const item of deferred) {
         const row = item.value as RemoteRecord;
-        if (
-          remaining.some((c) => c.table === row.kind && c.key === row.record_id)
-        )
-          continue;
+        if (remaining.has(`${row.kind}:${row.record_id}`)) continue;
         changed.push({
           table: row.kind,
           key: row.record_id,
@@ -313,6 +346,11 @@ export async function synchronize(
           value: row.deleted ? null : row.data,
         });
         if (row.deleted) {
+          if (
+            row.kind === "preferences" &&
+            row.record_id === "statisticsBaseline"
+          )
+            await database.syncMeta.delete("statisticsBaseline");
           await database.table(row.kind).delete(row.record_id);
           await database.syncMeta.put({
             key: `deleted:${row.kind}:${row.record_id}`,

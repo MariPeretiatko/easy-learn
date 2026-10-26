@@ -299,6 +299,7 @@ export type Database = {
         Args: { cleanup_token: string; target_owner: string };
         Returns: undefined;
       };
+      prune_sync_staging: { Args: Record<PropertyKey, never>; Returns: number };
       request_account_deletion: {
         Args: { target_owner: string };
         Returns: string;
@@ -311,6 +312,10 @@ export type Database = {
           total_parts: number;
         };
         Returns: Json;
+      };
+      validate_sync_value: {
+        Args: { kind: string; value: Json };
+        Returns: undefined;
       };
     };
     Enums: {

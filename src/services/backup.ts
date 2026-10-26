@@ -87,6 +87,16 @@ function validateCardMedia(card: RecordValue) {
         !/^data:image\/(png|jpeg|webp|gif);base64,/.test(value))
     )
       throw new Error("Некорректное изображение карточки");
+    if (typeof value === "string") {
+      const payload = value.slice(value.indexOf(",") + 1);
+      if (payload.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(payload))
+        throw new Error("Повреждено изображение карточки");
+      const bytes =
+        (payload.length / 4) * 3 -
+        (payload.endsWith("==") ? 2 : payload.endsWith("=") ? 1 : 0);
+      if (bytes > 3 * 1024 * 1024)
+        throw new Error("Изображение должно быть меньше 3 МБ");
+    }
   }
   for (const key of ["bold", "italic", "underline", "highlight"])
     if (card[key] !== undefined && typeof card[key] !== "boolean")
@@ -356,10 +366,28 @@ export function parseBackup(text: string): Backup {
     )
       throw new Error("Некорректное ручное состояние карточки");
   }
-  const ids = new Set(words.map((w) => w.id));
-  for (const d of raw.decks as unknown as Deck[])
-    if (d.wordIds.some((id) => !ids.has(id)))
-      throw new Error("Колода ссылается на отсутствующее слово");
+  const byWord = new Map(words.map((word) => [word.id, word]));
+  for (const deck of raw.decks as unknown as Deck[]) {
+    for (const id of deck.wordIds) {
+      const word = byWord.get(id);
+      if (!word) throw new Error("Колода ссылается на отсутствующее слово");
+      if (word.language !== deck.language)
+        throw new Error("Язык колоды и карточки различается");
+    }
+  }
+  const byDeck = new Map(
+    (raw.decks as unknown as Deck[]).map((deck) => [deck.id, deck]),
+  );
+  for (const collection of raw.collections as unknown as Collection[]) {
+    if (
+      collection.kind === "course" &&
+      collection.language &&
+      collection.deckIds.some(
+        (id) => byDeck.get(id)?.language !== collection.language,
+      )
+    )
+      throw new Error("Язык модуля и колоды различается");
+  }
   if (
     !validSubjects.has(settings.learningLanguage) ||
     !["light", "dark", "system"].includes(settings.theme) ||

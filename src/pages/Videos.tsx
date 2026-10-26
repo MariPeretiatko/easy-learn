@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "../db/database";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
   Plus,
@@ -24,7 +26,10 @@ import {
 import { VideoRepository, remember } from "../services/repositories";
 import { VideoEditor } from "../features/youtube/VideoEditor";
 import { useYouTube } from "../features/youtube/useYouTube";
-import { InteractiveText } from "../features/reader/InteractiveText";
+import {
+  InteractiveText,
+  wordStatusLookup,
+} from "../features/reader/InteractiveText";
 import { WordPopup } from "../features/reader/WordPopup";
 import { timeLabel } from "../utils/format";
 import { Listening } from "../features/youtube/Listening";
@@ -192,6 +197,11 @@ export function VideoPage() {
   return <VideoWorkspace key={video.id} video={video} />;
 }
 function VideoWorkspace({ video }: { video: Video }) {
+  const words = useLiveQuery(
+    () => db.words.where("language").equals(video.language).toArray(),
+    [video.language],
+  );
+  const vocabulary = useMemo(() => wordStatusLookup(words ?? []), [words]);
   const yt = useYouTube(
     video.youtubeId,
     video.lastPosition,
@@ -387,6 +397,7 @@ function VideoWorkspace({ video }: { video: Video }) {
                     <div>
                       {display !== "translation" && (
                         <InteractiveText
+                          vocabulary={vocabulary}
                           content={sub.text}
                           language={video.language}
                           onSelect={(text) => {

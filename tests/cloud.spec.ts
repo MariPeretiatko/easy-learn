@@ -42,6 +42,14 @@ test.afterAll(async () => {
   }
 });
 async function login(page: Page, address = email) {
+  await page.goto(`${base}/settings`);
+  const logout = page
+    .getByRole("button", { name: "Выйти", exact: true })
+    .last();
+  await expect(
+    page.getByRole("heading", { name: "Войти", exact: true }).or(logout),
+  ).toBeVisible();
+  if (await logout.isVisible()) await logout.click();
   await page.goto(`${base}/login`);
   await page.getByLabel("Email", { exact: true }).fill(address);
   await page.getByLabel("Пароль", { exact: true }).fill(password);
@@ -153,7 +161,7 @@ test("login, two-device synchronization, offline edits and logout isolation", as
     console.log("Two-device metrics:", JSON.stringify(metrics));
   }
 });
-test("registration validates password confirmation and sends a confirmation email", async ({
+test("registration with one password field sends a confirmation email", async ({
   page,
 }) => {
   test.setTimeout(90000);
@@ -162,12 +170,9 @@ test("registration validates password confirmation and sends a confirmation emai
   await page.getByLabel("Имя", { exact: true }).fill("Новый пользователь");
   await page.getByLabel("Email", { exact: true }).fill(address);
   await page.getByLabel("Пароль", { exact: true }).fill(password);
-  await page
-    .getByLabel("Повторите пароль", { exact: true })
-    .fill("different-password");
-  await page.getByRole("button", { name: "Регистрация", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("Пароли не совпадают");
-  await page.getByLabel("Повторите пароль", { exact: true }).fill(password);
+  await expect(
+    page.getByLabel("Повторите пароль", { exact: true }),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "Регистрация", exact: true }).click();
   await expect(
     page.getByText("Проверьте почту и подтвердите адрес по ссылке в письме.", {
@@ -514,9 +519,7 @@ test("switching accounts while a draft write is blocked keeps the draft with its
   ids.push(otherUser.data.user.id);
   await login(page);
   const second = await context.newPage();
-  await second.goto(`${base}/login`);
-  await second.getByLabel("Email", { exact: true }).fill(otherEmail);
-  await second.getByLabel("Пароль", { exact: true }).fill(password);
+  await second.goto(`${base}/library`);
   await page.goto(`${base}/create-set`);
   await expect(page.getByLabel("Название колоды")).toBeVisible();
   await page.evaluate(async (owner) => {
@@ -547,7 +550,34 @@ test("switching accounts while a draft write is blocked keeps the draft with its
   await page
     .getByLabel("Определение 1", { exact: true })
     .fill("незавершённая запись");
-  await second.getByRole("button", { name: "Войти", exact: true }).click();
+  const switched = await second.evaluate(
+    async ({ url, key, email, password }) => {
+      // A real SDK sign-in sends the same cross-tab broadcast as the login screen.
+      const tokenKey = Object.keys(localStorage).find(
+        (name) => name.startsWith("sb-") && name.endsWith("-auth-token"),
+      )!;
+      const response = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+        method: "POST",
+        headers: { apikey: key, "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const session = await response.json();
+      if (!response.ok) return false;
+      session.expires_at = Math.floor(Date.now() / 1000) + session.expires_in;
+      localStorage.setItem(tokenKey, JSON.stringify(session));
+      const channel = new BroadcastChannel(tokenKey);
+      channel.postMessage({ event: "SIGNED_IN", session });
+      channel.close();
+      return true;
+    },
+    {
+      url: process.env.E2E_LOCAL_SUPABASE_URL!,
+      key: process.env.E2E_LOCAL_ANON_KEY!,
+      email: otherEmail,
+      password,
+    },
+  );
+  expect(switched).toBe(true);
   await expect(
     page.getByText("Открываем вашу библиотеку…", { exact: true }),
   ).toBeVisible();
@@ -556,6 +586,7 @@ test("switching accounts while a draft write is blocked keeps the draft with its
       window as unknown as { releaseDraftWrite: () => void }
     ).releaseDraftWrite(),
   );
+  await second.reload();
   await expect(second).toHaveURL(`${base}/library`);
   await expect(second.getByText(title, { exact: true })).toHaveCount(0);
   await login(page);

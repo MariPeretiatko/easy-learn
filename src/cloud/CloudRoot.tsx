@@ -24,6 +24,8 @@ export function CloudRoot({ children }: { children: ReactNode }) {
   const desired = `${user?.id ?? "guest"}:${generation}`;
   useEffect(() => {
     if (!ready) return;
+    setFailure("");
+    setDeleting(false);
     let active = true;
     let stopSync: () => void = () => undefined,
       stopPreferences: () => void = () => undefined;
@@ -98,11 +100,11 @@ export function CloudRoot({ children }: { children: ReactNode }) {
                   "delete-account",
                   { body: {} },
                 );
-                if (!response.error && response.data?.ok) {
-                  const database = currentDatabase();
-                  await signOut();
-                  await database.delete();
-                }
+                if (response.error || !response.data?.ok)
+                  throw new Error("Deletion incomplete");
+                const database = currentDatabase();
+                await signOut();
+                await database.delete();
               })()
                 .catch(() =>
                   setFailure(
@@ -114,7 +116,16 @@ export function CloudRoot({ children }: { children: ReactNode }) {
           >
             {retrying ? "Завершаем удаление…" : "Завершить удаление"}
           </button>
-          <button className="button secondary" onClick={() => void signOut()}>
+          <button
+            className="button secondary"
+            onClick={() =>
+              void signOut().catch(() =>
+                setFailure(
+                  "Не удалось выйти. Проверьте соединение и повторите.",
+                ),
+              )
+            }
+          >
             Выйти
           </button>
         </section>

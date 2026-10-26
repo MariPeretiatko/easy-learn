@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(18);
 select has_view('public', 'sync_records', 'Sync protocol view exists');
 select has_table('public', 'sync_receipts', 'Replay receipts exist');
 select ok((select relrowsecurity from pg_class where oid='public.sync_record_data'::regclass), 'RLS is enabled on records');
@@ -13,5 +13,11 @@ select has_table('public', 'account_deletion_jobs', 'Deletion intent survives pa
 select ok((select relrowsecurity from pg_class where oid='public.account_deletion_jobs'::regclass), 'Deletion status is protected by RLS');
 select ok(not has_function_privilege('authenticated','public.request_account_deletion(uuid)','EXECUTE'), 'Only the service can begin durable deletion');
 select ok(has_function_privilege('authenticated','public.account_deletion_pending()','EXECUTE'), 'An account can check its own deletion status');
+select has_index('public', 'sync_record_data', 'sync_deck_memberships', 'Card membership has a GIN index');
+select has_index('public', 'sync_record_data', 'sync_collection_memberships', 'Deck membership has a GIN index');
+select throws_ok($$select public.validate_sync_value('words', '{"id":"bad","tags":"wrong"}'::jsonb)$$, '22023', 'Invalid array: tags', 'Malformed arrays are rejected');
+select throws_ok($$select public.validate_sync_value('words', '{"id":"bad","reviewCount":-1}'::jsonb)$$, '22023', 'Invalid number: reviewCount', 'Negative progress is rejected');
+select throws_ok($$select public.validate_sync_value('reviews', '{"id":"bad","result":"unknown"}'::jsonb)$$, '22023', 'Invalid review rating', 'Unknown ratings are rejected');
+select ok(not has_function_privilege('authenticated','public.prune_sync_staging()','EXECUTE'), 'Only the service can prune staging');
 select * from finish();
 rollback;

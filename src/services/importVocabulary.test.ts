@@ -52,3 +52,30 @@ it("does not import partial data if a later row is invalid", async () => {
   expect(await db.words.count()).toBe(0);
   expect(await db.statistics.count()).toBe(0);
 });
+it("imports a large list using one bulk insert and one membership update", async () => {
+  const { vi } = await import("vitest");
+  await db.decks.add({
+    id: "large",
+    title: "Large",
+    description: "",
+    language: "de",
+    tags: [],
+    wordIds: [],
+    createdAt: 1,
+    updatedAt: 1,
+    favorite: false,
+  });
+  const inserts = vi.spyOn(db.words, "bulkAdd"),
+    membership = vi.spyOn(db.decks, "update");
+  const rows = Array.from({ length: 2000 }, (_, i) => ({
+    term: `Word ${i}`,
+    translation: `Слово ${i}`,
+  }));
+  const result = await importVocabulary(rows, "de", "ru", "large");
+  expect(result.added).toBe(2000);
+  expect(inserts).toHaveBeenCalledTimes(1);
+  expect(membership).toHaveBeenCalledTimes(1);
+  expect((await db.decks.get("large"))?.wordIds).toHaveLength(2000);
+  expect((await db.statistics.toArray())[0].wordsAdded).toBe(2000);
+  vi.restoreAllMocks();
+});

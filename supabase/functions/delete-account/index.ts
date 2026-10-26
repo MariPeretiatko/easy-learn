@@ -36,6 +36,7 @@ Deno.serve(
         .order("requested_at")
         .limit(10);
       if (jobs.error) return new Response("{}", { status: 503, headers });
+      await admin.rpc("prune_sync_staging");
       let completed = 0;
       for (const job of jobs.data) {
         try {

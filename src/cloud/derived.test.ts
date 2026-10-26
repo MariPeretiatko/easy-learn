@@ -151,3 +151,34 @@ it("incremental rebuild touches only affected cards and days and agrees with ful
     await database.delete();
   }
 });
+it("does not rewrite unchanged progress or statistics during repeated replay", async () => {
+  const { vi } = await import("vitest");
+  const database = new LearningDatabase(`test-${crypto.randomUUID()}`);
+  try {
+    await database.localOnly(async () => {
+      const baseline = newWord({ id: "w", term: "Haus", translation: "дом" });
+      const event = {
+        id: "r",
+        wordId: "w",
+        timestamp: 1,
+        result: "good" as const,
+        responseTime: 1,
+        baseline,
+        deckId: "d",
+      };
+      await database.words.put(baseline);
+      await database.reviews.put(event);
+      await rebuildDerived(database);
+      const words = vi.spyOn(database.words, "bulkPut");
+      const statistics = vi.spyOn(database.statistics, "bulkPut");
+      await rebuildDerived(database, [
+        { table: "reviews", key: "r", before: event, value: event },
+      ]);
+      expect(words).not.toHaveBeenCalled();
+      expect(statistics).not.toHaveBeenCalled();
+      vi.restoreAllMocks();
+    });
+  } finally {
+    await database.delete();
+  }
+});

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { Eye, EyeOff, X } from "lucide-react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   authClient,
@@ -17,12 +18,44 @@ export function AuthPage({ mode }: { mode: Mode }) {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
-  const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
   const [resendAfter, setResendAfter] = useState(0);
+  const tabs = useRef<HTMLElement>(null);
+  const requestEpoch = useRef(0);
+  const [indicatorX, setIndicatorX] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const nav = tabs.current;
+    if (!nav) return;
+    const update = () => {
+      const active = nav.querySelector<HTMLElement>('a[aria-current="page"]');
+      if (!active) {
+        setIndicatorX(null);
+        return;
+      }
+      const navBox = nav.getBoundingClientRect(),
+        activeBox = active.getBoundingClientRect();
+      setIndicatorX(activeBox.left - navBox.left + (activeBox.width - 28) / 2);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(nav);
+    nav.querySelectorAll("a").forEach((link) => observer.observe(link));
+    return () => observer.disconnect();
+  }, [mode]);
+  useEffect(() => {
+    requestEpoch.current++;
+    setError("");
+    setMessage("");
+    setSent(false);
+    setBusy(false);
+    setResendAfter(0);
+    return () => {
+      requestEpoch.current++;
+    };
+  }, [mode]);
   const navigate = useNavigate(),
     location = useLocation();
   const recovery = useAccount((s) => s.recovery);
@@ -74,16 +107,14 @@ export function AuthPage({ mode }: { mode: Mode }) {
   }[mode];
   const callback = `${window.location.origin}/auth/callback`;
   async function submit() {
+    const epoch = requestEpoch.current;
     setError("");
     setMessage("");
     if (mode === "register" && !name.trim()) {
       setError("Введите имя.");
       return;
     }
-    if (
-      (mode === "register" || mode === "reset-password") &&
-      password !== confirmation
-    ) {
+    if (mode === "reset-password" && password !== confirmation) {
       setError("Пароли не совпадают.");
       return;
     }
@@ -95,6 +126,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
           email: email.trim(),
           password,
         });
+        if (epoch !== requestEpoch.current) return;
         if (error) throw error;
         navigate(returnTo, { replace: true });
       } else if (mode === "register") {
@@ -106,6 +138,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
             emailRedirectTo: callback,
           },
         });
+        if (epoch !== requestEpoch.current) return;
         if (error) throw error;
         setPassword("");
         setConfirmation("");
@@ -120,6 +153,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
           email.trim(),
           { redirectTo: `${callback}?type=recovery` },
         );
+        if (epoch !== requestEpoch.current) return;
         if (error) throw error;
         setMessage(
           "Если для этого адреса доступно восстановление, вы получите письмо с инструкцией.",
@@ -127,6 +161,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
       } else if (mode === "reset-password") {
         if (!recovery) throw new Error("recovery required");
         const { error } = await client.auth.updateUser({ password });
+        if (epoch !== requestEpoch.current) return;
         if (error) throw error;
         useAccount.setState({ recovery: false });
         setPassword("");
@@ -134,164 +169,302 @@ export function AuthPage({ mode }: { mode: Mode }) {
         navigate("/settings", { replace: true });
       }
     } catch (e) {
-      setError(authError(e));
+      if (epoch === requestEpoch.current) setError(authError(e));
     } finally {
-      setBusy(false);
+      if (epoch === requestEpoch.current) setBusy(false);
     }
   }
+  const loginURL = `/login?next=${encodeURIComponent(returnTo)}`;
+  const registerURL = `/register?next=${encodeURIComponent(returnTo)}`;
+  const standardForm = mode === "login" || mode === "register";
   return (
-    <main className="auth-screen">
-      <section className="auth-card" aria-labelledby="auth-title">
-        <Link className="auth-brand" to="/login">
-          Easy Learn
-        </Link>
-        <p className="auth-intro">Ваши знания. Ваш темп.</p>
-        <h1 id="auth-title">{title}</h1>
-        {cloudConfigurationError && (
-          <p className="notice">{cloudConfigurationError}</p>
-        )}
-        {message && <p role="status">{message}</p>}
-        {error && (
-          <p className="notice" role="alert">
-            {error}
-          </p>
-        )}
-        {mode === "reset-password" && !recovery && (
-          <p role="alert">
-            Откройте действительную ссылку восстановления из письма.
-          </p>
-        )}
-        {mode !== "callback" && !sent && (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void submit();
-            }}
-          >
-            {mode === "register" && (
-              <label>
-                Имя
-                <input
-                  required
-                  maxLength={80}
-                  autoComplete="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </label>
-            )}
-            {mode !== "reset-password" && (
-              <label>
-                Email
-                <input
-                  type="email"
-                  required
-                  maxLength={254}
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </label>
-            )}
-            {mode !== "forgot-password" && (
+    <main className={`auth-screen auth-entry auth-entry--${mode}`}>
+      <aside className="auth-visual" aria-label="Easy Learn">
+        <picture>
+          <source media="(min-width: 901px)" srcSet="/images/auth-study.webp" />
+          <img
+            className="auth-visual-image"
+            src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="
+            alt=""
+            fetchPriority="high"
+          />
+        </picture>
+        <h2 className="auth-visual-headline">
+          <span className="auth-headline-copy" key={mode}>
+            {mode === "register" ? (
               <>
-                <label>
-                  Пароль
-                  <input
-                    type={visible ? "text" : "password"}
-                    required
-                    minLength={mode === "login" ? 1 : 8}
-                    maxLength={128}
-                    autoComplete={
-                      mode === "login" ? "current-password" : "new-password"
-                    }
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </label>
-                {mode !== "login" && (
-                  <label>
-                    Повторите пароль
-                    <input
-                      type={visible ? "text" : "password"}
-                      required
-                      minLength={8}
-                      autoComplete="new-password"
-                      value={confirmation}
-                      onChange={(e) => setConfirmation(e.target.value)}
-                    />
-                  </label>
-                )}
-                <label className="check-label">
-                  <input
-                    type="checkbox"
-                    checked={visible}
-                    onChange={(e) => setVisible(e.target.checked)}
-                  />
-                  Показать пароль
-                </label>
-                {mode !== "login" && (
-                  <p className="hint">Не менее 8 символов.</p>
-                )}
+                Лучший способ учиться.
+                <br />
+                Начните бесплатно.
+              </>
+            ) : (
+              <>
+                Учитесь с комфортом.
+                <br />В своём ритме.
               </>
             )}
-            <button
-              className="button"
-              disabled={
-                busy || !supabase || (mode === "reset-password" && !recovery)
-              }
+          </span>
+        </h2>
+        <span className="auth-visual-brand">Easy Learn</span>
+      </aside>
+      <div className="auth-form-panel">
+        <button
+          className="auth-close"
+          type="button"
+          aria-label="Закрыть"
+          title="Вернуться назад"
+          disabled={window.history.length < 2}
+          onClick={() => navigate(-1)}
+        >
+          <X size={23} strokeWidth={1.8} />
+        </button>
+        <section className="auth-card" aria-labelledby="auth-title">
+          <Link className="auth-mobile-brand" to={loginURL}>
+            Easy Learn
+          </Link>
+          <nav ref={tabs} className="auth-tabs" aria-label="Вход и регистрация">
+            <Link
+              to={registerURL}
+              aria-current={mode === "register" ? "page" : undefined}
             >
-              {busy ? "Подождите…" : title}
-            </button>
-          </form>
-        )}
-        {sent && (
-          <button
-            className="button secondary"
-            disabled={busy}
-            onClick={() => {
-              if (Date.now() < resendAfter) {
-                setError("Повторное письмо можно запросить через минуту.");
-                return;
-              }
-              setBusy(true);
-              setError("");
-              void authClient()
-                .auth.resend({
-                  type: "signup",
-                  email: email.trim(),
-                  options: { emailRedirectTo: callback },
-                })
-                .then(({ error }) => {
-                  if (error) setError(authError(error));
-                  else {
-                    setResendAfter(Date.now() + 60000);
-                    setMessage("Письмо отправлено повторно. Проверьте почту.");
-                  }
-                })
-                .catch((e) => setError(authError(e)))
-                .finally(() => setBusy(false));
-            }}
+              Регистрация
+            </Link>
+            <Link
+              to={loginURL}
+              aria-current={mode === "login" ? "page" : undefined}
+            >
+              Вход
+            </Link>
+            <span
+              className="auth-tabs-indicator"
+              aria-hidden="true"
+              style={{
+                transform: `translateX(${indicatorX ?? 0}px)`,
+                opacity: indicatorX === null ? 0 : 1,
+              }}
+            />
+          </nav>
+          <h1
+            id="auth-title"
+            className={
+              standardForm ? "auth-title-visually-hidden" : "auth-title"
+            }
           >
-            Отправить письмо ещё раз
-          </button>
-        )}
-        <nav aria-label="Аккаунт">
-          {mode !== "login" && (
-            <Link to={`/login?next=${encodeURIComponent(returnTo)}`}>
-              Уже есть аккаунт? Войти
-            </Link>
+            {title}
+          </h1>
+          {cloudConfigurationError && (
+            <p className="auth-notice">{cloudConfigurationError}</p>
           )}
-          {mode !== "register" && (
-            <Link to={`/register?next=${encodeURIComponent(returnTo)}`}>
-              Создать аккаунт
-            </Link>
+          {message && (
+            <p className="auth-notice auth-notice--success" role="status">
+              {message}
+            </p>
           )}
-          {mode === "login" && (
-            <Link to="/forgot-password">Забыли пароль?</Link>
+          {error && (
+            <p className="auth-notice auth-notice--error" role="alert">
+              {error}
+            </p>
           )}
-        </nav>
-      </section>
+          {mode === "reset-password" && !recovery && (
+            <p className="auth-notice" role="alert">
+              Откройте действительную ссылку восстановления из письма.
+            </p>
+          )}
+          {mode !== "callback" && !sent && (
+            <form
+              className="auth-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void submit();
+              }}
+            >
+              <div className="auth-form-fields">
+                {standardForm && (
+                  <div
+                    className="auth-name-slot"
+                    inert={mode !== "register"}
+                    aria-hidden={mode !== "register"}
+                  >
+                    <div className="auth-name-inner">
+                      <div className="auth-field">
+                        <label htmlFor="auth-name">Имя</label>
+                        <input
+                          id="auth-name"
+                          name="name"
+                          required={mode === "register"}
+                          disabled={mode !== "register"}
+                          maxLength={80}
+                          autoComplete="name"
+                          placeholder="Ваше имя"
+                          value={name}
+                          onChange={(event) => setName(event.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {mode !== "reset-password" && (
+                  <div className="auth-field">
+                    <label htmlFor="auth-email">Email</label>
+                    <input
+                      id="auth-email"
+                      name="email"
+                      type="email"
+                      required
+                      maxLength={254}
+                      autoComplete="email"
+                      placeholder="user@email.com"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                    />
+                  </div>
+                )}
+                {mode !== "forgot-password" && (
+                  <>
+                    <PasswordField
+                      label="Пароль"
+                      value={password}
+                      onChange={setPassword}
+                      newPassword={mode !== "login"}
+                      recoveryURL={
+                        mode === "login"
+                          ? `/forgot-password?next=${encodeURIComponent(returnTo)}`
+                          : undefined
+                      }
+                    />
+                    {mode === "reset-password" && (
+                      <PasswordField
+                        label="Повторите пароль"
+                        value={confirmation}
+                        onChange={setConfirmation}
+                        newPassword
+                      />
+                    )}
+                  </>
+                )}
+              </div>
+              <button
+                className="auth-primary button"
+                disabled={
+                  busy || !supabase || (mode === "reset-password" && !recovery)
+                }
+              >
+                <span className="auth-action-label" key={mode}>
+                  {busy ? "Подождите…" : title}
+                </span>
+              </button>
+            </form>
+          )}
+          {sent && (
+            <button
+              className="button secondary"
+              disabled={busy}
+              onClick={() => {
+                if (Date.now() < resendAfter) {
+                  setError("Повторное письмо можно запросить через минуту.");
+                  return;
+                }
+                const epoch = requestEpoch.current;
+                setBusy(true);
+                setError("");
+                void authClient()
+                  .auth.resend({
+                    type: "signup",
+                    email: email.trim(),
+                    options: { emailRedirectTo: callback },
+                  })
+                  .then(({ error }) => {
+                    if (epoch !== requestEpoch.current) return;
+                    if (error) setError(authError(error));
+                    else {
+                      setResendAfter(Date.now() + 60000);
+                      setMessage(
+                        "Письмо отправлено повторно. Проверьте почту.",
+                      );
+                    }
+                  })
+                  .catch((e) => {
+                    if (epoch === requestEpoch.current) setError(authError(e));
+                  })
+                  .finally(() => {
+                    if (epoch === requestEpoch.current) setBusy(false);
+                  });
+              }}
+            >
+              Отправить письмо ещё раз
+            </button>
+          )}
+
+          <nav className="auth-alternative" aria-label="Аккаунт">
+            {mode !== "login" && (
+              <Link className="auth-secondary" to={loginURL}>
+                <span className="auth-action-label" key={mode}>
+                  Уже есть аккаунт? Войти
+                </span>
+              </Link>
+            )}
+            {mode !== "register" && (
+              <Link className="auth-secondary" to={registerURL}>
+                <span className="auth-action-label" key={mode}>
+                  Новый аккаунт? Создать аккаунт
+                </span>
+              </Link>
+            )}
+          </nav>
+        </section>
+      </div>
     </main>
+  );
+}
+function PasswordField({
+  label,
+  value,
+  onChange,
+  newPassword = false,
+  recoveryURL,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  newPassword?: boolean;
+  recoveryURL?: string;
+}) {
+  const id = useId();
+  const [visible, setVisible] = useState(false);
+  const confirmation = label === "Повторите пароль";
+  return (
+    <div className="auth-field">
+      <div className="auth-field-heading">
+        <label htmlFor={id}>{label}</label>
+        {recoveryURL && <Link to={recoveryURL}>Забыли пароль?</Link>}
+      </div>
+      <div className="auth-password-control">
+        <input
+          id={id}
+          name={confirmation ? "password-confirmation" : "password"}
+          type={visible ? "text" : "password"}
+          required
+          minLength={newPassword ? 8 : 1}
+          maxLength={128}
+          autoComplete={newPassword ? "new-password" : "current-password"}
+          placeholder={newPassword ? "Не менее 8 символов" : "Введите пароль"}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        />
+        <button
+          className="auth-password-toggle"
+          type="button"
+          aria-pressed={visible}
+          aria-label={`${visible ? "Скрыть" : "Показать"} ${confirmation ? "повтор пароля" : "пароль"}`}
+          onClick={() => setVisible((current) => !current)}
+        >
+          {visible ? (
+            <EyeOff size={20} strokeWidth={2} />
+          ) : (
+            <Eye size={20} strokeWidth={2} />
+          )}
+        </button>
+      </div>
+    </div>
   );
 }

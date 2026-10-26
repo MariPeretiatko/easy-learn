@@ -76,6 +76,26 @@ export class LearningDatabase extends Dexie {
             .put({ key: "outboxSequence", value: order });
         });
     }
+    this.version(owner ? 5 : 3)
+      .stores({
+        words:
+          "id, term, language, status, nextReviewAt, *tags, [language+nativeLanguage]",
+        decks: "id, language, updatedAt, *wordIds",
+        collections: "id, kind, updatedAt, folderId, *deckIds",
+        reviews: "id, wordId, timestamp, [wordId+timestamp]",
+        ...(owner ? { outbox: "id, createdAt, order, *recordKeys" } : {}),
+      })
+      .upgrade(async (tx) => {
+        if (owner)
+          await tx
+            .table("outbox")
+            .toCollection()
+            .modify((operation: PendingOperation) => {
+              operation.recordKeys = operation.changes.map(
+                (change) => `${change.table}:${change.key}`,
+              );
+            });
+      });
     this.use(syncMiddleware(owner));
   }
   async localOnly<T>(action: () => Promise<T>): Promise<T> {
@@ -104,8 +124,9 @@ export async function selectDatabase(owner: string | null) {
   if (active.owner === owner) return active;
   const previous = active;
   await previous.transaction("rw", previous.tables, async () => undefined);
-  active = new LearningDatabase(owner);
-  await active.open();
+  const next = new LearningDatabase(owner);
+  await next.open();
+  active = next;
   previous.close();
   return active;
 }

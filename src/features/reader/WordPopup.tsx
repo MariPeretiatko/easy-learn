@@ -42,14 +42,22 @@ export function WordPopup({
           ? translationService.translateText(text, context.language, native)
           : translationService.translateWord(text, context.language, native));
         const words = await db.words
-          .where("language")
-          .equals(context.language)
+          .where("[language+nativeLanguage]")
+          .equals([context.language, native])
           .toArray();
-        const found = words.find(
+        const candidates = words.filter(
           (w) =>
             normalize(w.term.replace(/^(der|die|das)\s+/i, "")) ===
               normalize(result.term) || normalize(w.term) === normalize(text),
         );
+        const found =
+          candidates.length === 1
+            ? candidates[0]
+            : candidates.find(
+                (word) =>
+                  result.translation &&
+                  normalize(word.translation) === normalize(result.translation),
+              );
         if (cancelled) return;
         setExisting(found);
         setTerm(found?.term ?? result.term);

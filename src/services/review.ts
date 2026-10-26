@@ -33,12 +33,14 @@ export async function recordReview(
         lastReviewedAt: Date.now(),
         updatedAt: Date.now(),
       });
-      const previousEvents = await db.reviews
-        .where("wordId")
-        .equals(word.id)
-        .toArray();
-      const baseline =
-        previousEvents.find((event) => event.baseline)?.baseline ?? current;
+      const previousEvent = db.owner
+        ? await db.reviews
+            .where("[wordId+timestamp]")
+            .between([word.id, Dexie.minKey], [word.id, Dexie.maxKey])
+            .filter((event) => !!event.baseline)
+            .first()
+        : undefined;
+      const baseline = previousEvent?.baseline ?? current;
       await db.reviews.add({
         ...(db.owner
           ? {

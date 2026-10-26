@@ -23,17 +23,34 @@ export function useSetDraft() {
   const latest = useRef<SetDraft | null>(null);
   const loadedId = useRef<string | null>(null);
   const unsaved = useRef(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  const queuedDraft = useRef<SetDraft | null>(null);
+  const draining = useRef(false);
   const writes = useRef<Promise<unknown>>(Promise.resolve());
   const published = useRef(false);
   const [saved, setSaved] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const enqueue = (value: SetDraft) => {
-    writes.current = trackWrite(
-      writes.current
-        .catch(() => undefined)
-        .then(() => draftDatabase.drafts.put(value)),
-    );
+    queuedDraft.current = value;
+    if (!draining.current) {
+      draining.current = true;
+      writes.current = trackWrite(
+        Promise.resolve().then(async () => {
+          try {
+            while (queuedDraft.current) {
+              const next = queuedDraft.current;
+              queuedDraft.current = null;
+              await draftDatabase.drafts.put(next);
+            }
+          } finally {
+            draining.current = false;
+          }
+        }),
+      );
+    }
     return writes.current;
   };
   useEffect(() => {
@@ -41,11 +58,8 @@ export function useSetDraft() {
     let active = true;
     published.current = false;
     void (async () => {
-      const stored = recoverDraft(
-        draftDatabase.owner,
-        draftId,
-        await draftDatabase.drafts.get(draftId),
-      );
+      const persisted = await draftDatabase.drafts.get(draftId);
+      const stored = recoverDraft(draftDatabase.owner, draftId, persisted);
       if (!active) return;
       if (!stored && (await draftDatabase.decks.get(draftId))) {
         if (!active) return;
@@ -65,7 +79,8 @@ export function useSetDraft() {
         updatedAt: Date.now(),
       };
       if (active) {
-        await draftDatabase.drafts.put(initial);
+        if (!persisted || stored !== persisted)
+          await draftDatabase.drafts.put(initial);
         clearDraftJournal(draftDatabase.owner, draftId);
         if (!active) return;
         latest.current = initial;
@@ -83,7 +98,24 @@ export function useSetDraft() {
       active = false;
     };
   }, [draftId, id, navigate]);
+  const persist = (value: SetDraft) => {
+    return enqueue(value)
+      .then(() => {
+        if (latest.current === value) {
+          clearDraftJournal(draftDatabase.owner, value.id);
+          unsaved.current = false;
+          setSaved(true);
+        }
+      })
+      .catch((error) => {
+        setError(
+          "Не удалось сохранить черновик. Скопируйте изменения и проверьте свободное место.",
+        );
+        throw error;
+      });
+  };
   const commit = (value: SetDraft) => {
+    const previous = latest.current;
     latest.current = value;
     unsaved.current = true;
     setSaved(false);
@@ -95,25 +127,25 @@ export function useSetDraft() {
         "Не удалось создать аварийную копию. Не закрывайте страницу до завершения сохранения.",
       );
     }
-    void enqueue(value)
-      .then(() => {
-        if (latest.current === value) {
-          clearDraftJournal(draftDatabase.owner, value.id);
-          unsaved.current = false;
-          setSaved(true);
-        }
-      })
-      .catch(() =>
-        setError(
-          "Не удалось сохранить черновик. Скопируйте изменения и проверьте свободное место.",
-        ),
+    clearTimeout(saveTimer.current);
+    const changedMedia = value.cards.some((card) => {
+      const old = previous?.cards.find((item) => item.id === card.id);
+      return card.image !== old?.image || card.termImage !== old?.termImage;
+    });
+    if (changedMedia) void persist(value).catch(() => undefined);
+    else
+      saveTimer.current = setTimeout(
+        () => void persist(value).catch(() => undefined),
+        150,
       );
   };
   useEffect(() => {
-    const flush = () =>
-      latest.current && !published.current
-        ? enqueue(latest.current)
+    const flush = () => {
+      clearTimeout(saveTimer.current);
+      return latest.current && !published.current
+        ? persist(latest.current)
         : writes.current;
+    };
     const unregister = registerFlush(flush);
     const onHide = () => {
       void flush().catch(() => undefined);
@@ -167,6 +199,7 @@ export function useSetDraft() {
     setBusy(true);
     setError("");
     published.current = true;
+    clearTimeout(saveTimer.current);
     try {
       await enqueue(draft);
       if (currentDatabase() !== draftDatabase) return;

@@ -19,7 +19,8 @@ test("signed-out visitors see standalone account screens and cannot open a perso
   await expect(
     page.getByRole("heading", { name: "Регистрация", exact: true }),
   ).toBeVisible();
-  await expect(page.getByLabel("Повторите пароль")).toBeVisible();
+  await expect(page.getByLabel("Имя", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Повторите пароль")).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 844 });
   expect(
     await page.evaluate(
@@ -28,4 +29,119 @@ test("signed-out visitors see standalone account screens and cannot open a perso
   ).toBe(true);
   await page.getByRole("link", { name: "Уже есть аккаунт? Войти" }).click();
   await expect(page).toHaveURL(/next=%2Fcreate-set/);
+});
+
+test("forms contain only the requested fields and support password visibility", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 940 });
+  await page.goto("/login?next=%2Flibrary");
+  await expect(page.locator(".auth-visual")).toBeVisible();
+  await expect(page.locator("form input:visible")).toHaveCount(2);
+  await expect(page.locator('form input[type="checkbox"]')).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /Google|Facebook|Apple|WhatsApp/i }),
+  ).toHaveCount(0);
+  const password = page.getByLabel("Пароль", { exact: true });
+  await password.fill("sample-password");
+  await page
+    .getByRole("button", { name: "Показать пароль", exact: true })
+    .click();
+  await expect(password).toHaveAttribute("type", "text");
+  await expect(password).toHaveValue("sample-password");
+  await page
+    .getByRole("button", { name: "Скрыть пароль", exact: true })
+    .click();
+  await expect(password).toHaveAttribute("type", "password");
+  await page.getByRole("link", { name: "Регистрация", exact: true }).click();
+  await expect(page.locator("form input:visible")).toHaveCount(3);
+  await expect(page.getByLabel("Имя", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
+  await page
+    .getByRole("button", { name: "Показать пароль", exact: true })
+    .click();
+  await expect(page.getByLabel("Пароль", { exact: true })).toHaveAttribute(
+    "type",
+    "text",
+  );
+  await expect(
+    page.getByLabel("Повторите пароль", { exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("link", { name: "Уже есть аккаунт? Войти", exact: true })
+    .click();
+  await expect(page).toHaveURL(/next=%2Flibrary/);
+  await page.getByRole("link", { name: "Забыли пароль?", exact: true }).click();
+  await expect(page.locator("form input:visible")).toHaveCount(1);
+  await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
+});
+
+for (const width of [1440, 390]) {
+  test(`switching account forms preserves layout and entered values at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/login?next=%2Flibrary");
+    await page.locator(".auth-tabs").waitFor();
+    await page.evaluate(() => document.fonts.ready);
+    const positions = () =>
+      page.evaluate(() =>
+        [".auth-card", ".auth-tabs", ".auth-primary", ".auth-alternative"].map(
+          (selector) => {
+            const box = document
+              .querySelector(selector)!
+              .getBoundingClientRect();
+            return { x: box.x, y: box.y, width: box.width, height: box.height };
+          },
+        ),
+      );
+    const initial = await positions();
+    await page.getByLabel("Email", { exact: true }).fill("learner@example.com");
+    await page.getByRole("link", { name: "Регистрация", exact: true }).click();
+    await page.getByLabel("Имя", { exact: true }).fill("Ученик");
+    await page
+      .locator(".auth-name-slot")
+      .evaluate((element) =>
+        Promise.all(
+          element
+            .getAnimations()
+            .map((animation) => animation.finished.catch(() => undefined)),
+        ),
+      );
+    await expect(page.getByLabel("Повторите пароль")).toHaveCount(0);
+    await expect(page.getByLabel("Email", { exact: true })).toHaveValue(
+      "learner@example.com",
+    );
+    expect(await positions()).toEqual(initial);
+    await page.getByRole("link", { name: "Вход", exact: true }).click();
+    await page
+      .locator(".auth-name-slot")
+      .evaluate((element) =>
+        Promise.all(
+          element
+            .getAnimations()
+            .map((animation) => animation.finished.catch(() => undefined)),
+        ),
+      );
+    await expect(page.getByLabel("Имя", { exact: true })).toBeDisabled();
+    await expect(page.locator("form input:visible")).toHaveCount(2);
+    expect(await positions()).toEqual(initial);
+    await page.getByRole("link", { name: "Регистрация", exact: true }).click();
+    await expect(page.getByLabel("Имя", { exact: true })).toHaveValue("Ученик");
+  });
+}
+
+test("account switching respects reduced-motion preference", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/login");
+  await page.getByRole("link", { name: "Регистрация", exact: true }).click();
+  await expect(page.getByLabel("Имя", { exact: true })).toBeVisible();
+  expect(
+    await page
+      .locator(".auth-tabs-indicator")
+      .evaluate((element) => getComputedStyle(element).transitionDuration),
+  ).toBe("0s");
+  await expect(page.locator("form input:visible")).toHaveCount(3);
 });
