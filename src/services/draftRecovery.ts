@@ -1,28 +1,67 @@
 import type { SetDraft } from "../types";
-function key(owner: string | null, id: string) {
-  return `easy-learn-draft-recovery:${owner ?? "guest"}:${id}`;
+import { withoutCardImages } from "../cloud/images";
+function ownerPrefix(owner: string | null) {
+  return `easy-learn-draft-recovery:${owner ?? "guest"}:`;
 }
-// Text and card order are journaled synchronously. Large media stays in IndexedDB.
-export function journalDraft(owner: string | null, draft: SetDraft) {
-  localStorage.setItem(
-    key(owner, draft.id),
-    JSON.stringify({
-      ...draft,
-      cards: draft.cards.map(
-        ({ image: _image, termImage: _termImage, ...card }) => card,
-      ),
-    }),
-  );
+function key(owner: string | null, id: string) {
+  return `${ownerPrefix(owner)}${id}`;
+}
+// Journal only changed cards; large drafts are never serialized on every keypress.
+export function journalDraft(
+  owner: string | null,
+  draft: SetDraft,
+  previous?: SetDraft,
+) {
+  const base = key(owner, draft.id);
+  const oldCards = new Map(previous?.cards.map((card) => [card.id, card]));
+  const initialized = localStorage.getItem(`${base}:order`) !== null;
+  // Loaded drafts already have an IndexedDB baseline; standalone journals include every card.
+  for (const card of draft.cards)
+    if (!previous || oldCards.get(card.id) !== card)
+      localStorage.setItem(
+        `${base}:card:${card.id}`,
+        JSON.stringify(withoutCardImages(card)),
+      );
+  const orderChanged =
+    !initialized ||
+    !previous ||
+    previous.cards.length !== draft.cards.length ||
+    draft.cards.some((card, index) => previous.cards[index]?.id !== card.id);
+  if (orderChanged)
+    localStorage.setItem(
+      `${base}:order`,
+      JSON.stringify(draft.cards.map((card) => card.id)),
+    );
+  const { cards: _cards, ...metadata } = draft;
+  localStorage.setItem(base, JSON.stringify({ version: 2, ...metadata }));
 }
 export function recoverDraft(
   owner: string | null,
   id: string,
   stored?: SetDraft,
 ) {
-  const raw = localStorage.getItem(key(owner, id));
-  if (!raw) return stored;
+  const base = key(owner, id);
+  const raw = localStorage.getItem(base);
+  const cleanStored = stored ? withoutCardImages(stored) : undefined;
+  if (!raw) return cleanStored;
   try {
-    const draft = JSON.parse(raw) as SetDraft;
+    const draft = JSON.parse(raw);
+    if (draft.version === 2) {
+      const order: unknown = JSON.parse(
+        localStorage.getItem(`${base}:order`) ?? "null",
+      );
+      if (
+        !Array.isArray(order) ||
+        !order.every((entry) => typeof entry === "string")
+      )
+        return cleanStored;
+      const storedCards = new Map(stored?.cards.map((card) => [card.id, card]));
+      draft.cards = order.map((cardId) => {
+        const card = localStorage.getItem(`${base}:card:${cardId}`);
+        return card ? JSON.parse(card) : storedCards.get(cardId);
+      });
+      delete draft.version;
+    }
     if (
       draft.id !== id ||
       typeof draft.title !== "string" ||
@@ -30,26 +69,33 @@ export function recoverDraft(
       !Number.isFinite(draft.updatedAt) ||
       !Array.isArray(draft.cards) ||
       draft.cards.some(
-        (card) =>
+        (card: unknown) =>
           !card ||
-          typeof card.id !== "string" ||
-          typeof card.term !== "string" ||
-          typeof card.definition !== "string",
+          typeof card !== "object" ||
+          typeof (card as Record<string, unknown>).id !== "string" ||
+          typeof (card as Record<string, unknown>).term !== "string" ||
+          typeof (card as Record<string, unknown>).definition !== "string",
       )
     )
-      return stored;
-    if (stored && stored.updatedAt > draft.updatedAt) return stored;
-    return {
-      ...draft,
-      cards: draft.cards.map((card) => {
-        const media = stored?.cards.find((item) => item.id === card.id);
-        return { ...card, image: media?.image, termImage: media?.termImage };
-      }),
-    };
+      return cleanStored;
+    if (stored && stored.updatedAt > draft.updatedAt) return cleanStored;
+    return withoutCardImages(draft) as SetDraft;
   } catch {
-    return stored;
+    return cleanStored;
   }
 }
+function removeMatching(matches: (entry: string) => boolean) {
+  const keys: string[] = [];
+  for (let index = 0; index < localStorage.length; index++) {
+    const entry = localStorage.key(index);
+    if (entry && matches(entry)) keys.push(entry);
+  }
+  keys.forEach((entry) => localStorage.removeItem(entry));
+}
 export function clearDraftJournal(owner: string | null, id: string) {
-  localStorage.removeItem(key(owner, id));
+  const base = key(owner, id);
+  removeMatching((entry) => entry === base || entry.startsWith(`${base}:`));
+}
+export function clearDraftJournals(owner: string | null) {
+  removeMatching((entry) => entry.startsWith(ownerPrefix(owner)));
 }

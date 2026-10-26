@@ -89,8 +89,8 @@ export async function publishDraft(draft: SetDraft) {
           acceptedTranslations: card.acceptedTranslations
             ?.map((value) => value.trim())
             .filter(Boolean),
-          image: card.image,
-          termImage: card.termImage,
+          image: undefined,
+          termImage: undefined,
           bold: card.bold,
           italic: card.italic,
           underline: card.underline,
@@ -153,8 +153,6 @@ export async function editSetDraft(deckId: string) {
                 definition: word.translation,
                 acceptedTerms: word.acceptedTerms,
                 acceptedTranslations: word.acceptedTranslations,
-                image: word.image,
-                termImage: word.termImage,
                 bold: word.bold,
                 italic: word.italic,
                 underline: word.underline,

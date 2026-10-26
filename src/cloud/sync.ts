@@ -1,3 +1,4 @@
+import { clearDraftJournal } from "../services/draftRecovery";
 import type { Json } from "./database.types";
 import { create } from "zustand";
 import type { CloudClient } from "./client";
@@ -10,7 +11,7 @@ import {
   type PendingOperation,
   type RemoteRecord,
 } from "./types";
-import { transformImages, resetUploadChecks } from "./images";
+import { withoutCardImages } from "./images";
 import { rebuildDerived } from "./derived";
 import { useSettings } from "../store/useSettings";
 import { withDefaultSettings } from "../store/settingsDefaults";
@@ -37,22 +38,17 @@ function transport(client: CloudClient, owner: string): Transport {
         .order("revision")
         .limit(200);
       if (error) throw error;
-      return Promise.all(
-        (data as RemoteRecord[]).map(async (record) => ({
-          ...record,
-          data: await transformImages(client, owner, record.data, "download"),
-        })),
-      );
+      return (data as RemoteRecord[]).map((record) => ({
+        ...record,
+        data: withoutCardImages(record.data),
+      }));
     },
     async push(operation) {
-      resetUploadChecks();
-      const changes = await Promise.all(
-        operation.changes.map(async (change) => ({
-          ...change,
-          before: await transformImages(client, owner, change.before, "upload"),
-          value: await transformImages(client, owner, change.value, "upload"),
-        })),
-      );
+      const changes = operation.changes.map((change) => ({
+        ...change,
+        before: withoutCardImages(change.before),
+        value: withoutCardImages(change.value),
+      }));
       let data: unknown;
       if (changes.length > 100) {
         const total = Math.ceil(changes.length / 100);
@@ -83,20 +79,9 @@ function transport(client: CloudClient, owner: string): Transport {
         conflicts?: RemoteRecord[];
         records?: RemoteRecord[];
       };
-      if (result.records)
-        result.records = await Promise.all(
-          result.records.map(async (r) => ({
-            ...r,
-            data: await transformImages(client, owner, r.data, "download"),
-          })),
-        );
+      if (result.records) result.records = withoutCardImages(result.records);
       if (result.conflicts)
-        result.conflicts = await Promise.all(
-          result.conflicts.map(async (r) => ({
-            ...r,
-            data: await transformImages(client, owner, r.data, "download"),
-          })),
-        );
+        result.conflicts = withoutCardImages(result.conflicts);
       return result;
     },
   };
@@ -142,6 +127,7 @@ export async function synchronize(
       const rows = await remote.pull(cursor);
       if (!isActive()) return;
       if (!rows.length) break;
+      const removedDrafts: string[] = [];
       await database.localOnly(async () => {
         const changed: Change[] = [];
         const pending = await pendingKeys(
@@ -165,6 +151,7 @@ export async function synchronize(
             value: row.deleted ? null : row.data,
           });
           if (row.deleted) {
+            if (row.kind === "drafts") removedDrafts.push(row.record_id);
             if (
               row.kind === "preferences" &&
               row.record_id === "statisticsBaseline"
@@ -201,6 +188,7 @@ export async function synchronize(
         });
         await rebuildDerived(database, changed);
       });
+      removedDrafts.forEach((id) => clearDraftJournal(database.owner, id));
       if (rows.length < 200) break;
     }
   }
@@ -317,6 +305,7 @@ export async function synchronize(
       result.records.length < operation.changes.length
     )
       throw new Error("Неполное подтверждение облачной операции");
+    const removedDrafts: string[] = [];
     await database.localOnly(async () => {
       const changed: Change[] = [];
       await database.syncMeta.delete(`failure:${operation.id}`);
@@ -346,6 +335,7 @@ export async function synchronize(
           value: row.deleted ? null : row.data,
         });
         if (row.deleted) {
+          if (row.kind === "drafts") removedDrafts.push(row.record_id);
           if (
             row.kind === "preferences" &&
             row.record_id === "statisticsBaseline"
@@ -379,6 +369,7 @@ export async function synchronize(
       }
       await rebuildDerived(database, changed);
     });
+    removedDrafts.forEach((id) => clearDraftJournal(database.owner, id));
   }
   await pull();
   if (isActive()) {

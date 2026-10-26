@@ -77,6 +77,17 @@ export function observeAuth() {
 }
 export function authError(error: unknown) {
   const code = (error as { code?: string })?.code;
+  if (
+    /error sending (confirmation|recovery|magic link|email)/i.test(
+      (error as { message?: string })?.message ?? "",
+    )
+  )
+    return "Сервис отправки писем временно недоступен. Попробуйте позже. Если ошибка повторяется, сообщите владельцу сайта.";
+  if (
+    code === "email_address_not_authorized" ||
+    code === "email_address_invalid"
+  )
+    return "Не удалось отправить письмо на этот адрес. Проверьте email; если он верный, сообщите владельцу сайта.";
   if (code === "invalid_credentials") return "Неверный email или пароль.";
   if (code === "email_not_confirmed") return "Сначала подтвердите адрес почты.";
   if (

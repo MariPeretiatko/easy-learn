@@ -7,10 +7,8 @@ import {
   supabase,
 } from "../../cloud/client";
 import { authError, safeReturnTo, useAccount } from "../../cloud/auth";
-const exchanges = new Map<
-  string,
-  ReturnType<ReturnType<typeof authClient>["auth"]["exchangeCodeForSession"]>
->();
+import { completeEmailCallback } from "../../cloud/authCallback";
+const exchanges = new Map<string, Promise<{ recovery: boolean }>>();
 type Mode =
   "login" | "register" | "forgot-password" | "reset-password" | "callback";
 export function AuthPage({ mode }: { mode: Mode }) {
@@ -65,35 +63,49 @@ export function AuthPage({ mode }: { mode: Mode }) {
   );
   useEffect(() => {
     if (mode !== "callback" || !supabase) return;
-    const params = new URLSearchParams(location.search);
-    const code = params.get("code");
-    if (!code || params.has("error")) {
-      setError("Ссылка недействительна или истекла. Запросите новое письмо.");
-      return;
-    }
+    const url = new URL(
+      location.pathname + location.search + location.hash,
+      window.location.origin,
+    );
+    const callbackKey = url.search + url.hash;
     let active = true;
-    // Strip the authorization code from history as soon as it has been consumed.
-    let exchange = exchanges.get(code);
+    let exchange = exchanges.get(callbackKey);
     if (!exchange) {
-      exchange = supabase.auth.exchangeCodeForSession(code);
-      exchanges.set(code, exchange);
+      exchange = completeEmailCallback(supabase, url);
+      exchanges.set(callbackKey, exchange);
     }
-    void exchange.then(({ error }) => {
-      if (!active) return;
-      if (error)
-        setError("Ссылка недействительна или истекла. Запросите новое письмо.");
-      else
+    // Remove credentials immediately, including failed links, from browser history.
+    window.history.replaceState(window.history.state, "", url.pathname);
+    void exchange
+      .then(({ recovery: recovering }) => {
+        if (!active) return;
+        if (recovering) useAccount.setState({ recovery: true });
         navigate(
-          params.get("type") === "recovery" || useAccount.getState().recovery
+          recovering || useAccount.getState().recovery
             ? "/reset-password"
             : returnTo,
           { replace: true },
         );
-    });
+      })
+      .catch((error: unknown) => {
+        if (active)
+          setError(
+            error instanceof Error
+              ? error.message
+              : "Не удалось подтвердить ссылку.",
+          );
+      });
     return () => {
       active = false;
     };
-  }, [mode, location.search, navigate, returnTo]);
+  }, [
+    mode,
+    location.pathname,
+    location.search,
+    location.hash,
+    navigate,
+    returnTo,
+  ]);
   useEffect(() => {
     if (user && !recovery && (mode === "login" || mode === "register"))
       navigate(returnTo, { replace: true });

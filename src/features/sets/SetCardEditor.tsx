@@ -4,17 +4,14 @@ import {
   ArrowUp,
   Bold,
   GripHorizontal,
-  ImagePlus,
   Italic,
   Trash2,
   Underline,
   Highlighter,
-  X,
 } from "lucide-react";
 import { AutoTextarea } from "../../components/AutoTextarea";
 import { AnswerAlternatives } from "../../components/AnswerAlternatives";
 import type { SetCard, Word } from "../../types";
-import { readImage } from "../../services/media";
 export function SetCardEditor({
   card,
   index,
@@ -28,7 +25,6 @@ export function SetCardEditor({
   onDrop,
   onDragStart,
   onDragEnd,
-  onError,
 }: {
   card: SetCard;
   index: number;
@@ -42,7 +38,6 @@ export function SetCardEditor({
   onDrop: () => void;
   onDragStart: () => void;
   onDragEnd: () => void;
-  onError: (message: string) => void;
 }) {
   const [focused, setFocused] = useState(false);
   return (
@@ -95,14 +90,6 @@ export function SetCardEditor({
         </div>
       </div>
       <div className="editor-card-body">
-        <CardImage
-          value={card.termImage}
-          label={`Изображение термина ${index + 1}`}
-          removeLabel={`Удалить изображение термина ${index + 1}`}
-          onChange={(termImage) => onPatch({ termImage })}
-          onError={onError}
-          side="term"
-        />
         <div className="editor-term-field">
           <label>
             <AutoTextarea
@@ -165,14 +152,6 @@ export function SetCardEditor({
           />
           <span>ОПРЕДЕЛЕНИЕ</span>
         </label>
-        <CardImage
-          value={card.image}
-          label={`Изображение ${index + 1}`}
-          removeLabel={`Удалить изображение ${index + 1}`}
-          onChange={(image) => onPatch({ image })}
-          onError={onError}
-          side="definition"
-        />
       </div>
       <AnswerAlternatives
         className="card-accepted-answers"
@@ -202,56 +181,5 @@ export function SetCardEditor({
         ))}
       </div>
     </article>
-  );
-}
-function CardImage({
-  value,
-  label,
-  removeLabel,
-  onChange,
-  onError,
-  side,
-}: {
-  value?: string;
-  label: string;
-  removeLabel: string;
-  onChange: (value: string | undefined) => void;
-  onError: (message: string) => void;
-  side: "term" | "definition";
-}) {
-  return (
-    <div className={`editor-image editor-image-${side}`}>
-      {value ? (
-        <>
-          <img src={value} alt={label} />
-          <button
-            type="button"
-            className="icon-button"
-            aria-label={removeLabel}
-            onClick={() => onChange(undefined)}
-          >
-            <X size={15} />
-          </button>
-        </>
-      ) : (
-        <label>
-          <ImagePlus size={22} />
-          <span>Изображение</span>
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif"
-            aria-label={label}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file)
-                void readImage(file)
-                  .then(onChange)
-                  .catch((error) => onError(error.message));
-              e.target.value = "";
-            }}
-          />
-        </label>
-      )}
-    </div>
   );
 }

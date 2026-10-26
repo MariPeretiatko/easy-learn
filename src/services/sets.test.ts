@@ -43,7 +43,7 @@ it("keeps a failing draft and rolls back its earlier valid cards", async () => {
   expect(await db.decks.count()).toBe(0);
   expect(await db.statistics.count()).toBe(0);
 });
-it("resumes one edit draft, preserves scheduling and can remove a term image", async () => {
+it("resumes one edit draft, preserves scheduling and discards legacy images", async () => {
   const word = newWord({
     term: "Haus",
     translation: "дом",
@@ -77,15 +77,11 @@ it("resumes one edit draft, preserves scheduling and can remove a term image", a
     status: "review",
   });
   expect((await db.words.get(word.id))?.image).toBeUndefined();
-  expect((await db.words.get(word.id))?.termImage).toBe(
-    "data:image/png;base64,dGVybQ==",
-  );
+  expect((await db.words.get(word.id))?.termImage).toBeUndefined();
   const backup = await createBackup();
   await clearData();
   await restoreBackup(backup);
-  expect((await db.words.get(word.id))?.termImage).toBe(
-    "data:image/png;base64,dGVybQ==",
-  );
+  expect((await db.words.get(word.id))?.termImage).toBeUndefined();
 });
 it("backs up and restores drafts, collections, explanations and test results; accepts old backups", async () => {
   await publishDraft(draft);

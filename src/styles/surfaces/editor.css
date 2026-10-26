@@ -159,7 +159,7 @@
 
 .editor-card-body {
   display: grid;
-  grid-template-columns: 1fr 1fr 100px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 30px;
   padding: 23px 25px 9px;
 }
@@ -199,50 +199,6 @@
 .editor-card-body textarea::placeholder {
   color: var(--muted);
   opacity: 0.55;
-}
-
-.editor-image {
-  position: relative;
-  height: 80px;
-  width: 100px;
-  border: 1px dashed var(--muted);
-  border-radius: 3px;
-  align-self: center;
-}
-
-.editor-image > label {
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-  gap: 7px;
-  font-size: 12px;
-  cursor: pointer;
-  color: var(--muted);
-  margin: 0;
-}
-
-.editor-image input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-  width: 100%;
-}
-
-.editor-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.editor-image > button {
-  position: absolute;
-  right: -9px;
-  top: -9px;
-  background: var(--bg);
-  padding: 4px;
 }
 
 .editor-format {

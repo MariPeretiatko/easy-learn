@@ -1,3 +1,4 @@
+import { clearDraftJournals } from "../services/draftRecovery";
 import { flushPendingWrites } from "../services/pendingWrites";
 import { useEffect, useState, type ReactNode } from "react";
 import { currentDatabase, selectDatabase } from "../db/database";
@@ -6,7 +7,6 @@ import { supabase } from "./client";
 import { signOut, useAccount } from "./auth";
 import { observePreferences, selectPreferences } from "./preferences";
 import { startSync, useSync } from "./sync";
-import { clearImageRequests } from "./images";
 import { useUI } from "../store/useUI";
 let transition = Promise.resolve();
 export function CloudRoot({ children }: { children: ReactNode }) {
@@ -38,7 +38,6 @@ export function CloudRoot({ children }: { children: ReactNode }) {
         await new Promise<void>((resolve) => setTimeout(resolve, 0));
         if (!active) return;
         await flushPendingWrites();
-        clearImageRequests();
         useUI.setState({ wordDraft: null, toasts: [] });
         await selectDatabase(user?.id ?? null);
         const database = currentDatabase();
@@ -105,6 +104,7 @@ export function CloudRoot({ children }: { children: ReactNode }) {
                 const database = currentDatabase();
                 await signOut();
                 await database.delete();
+                clearDraftJournals(database.owner);
               })()
                 .catch(() =>
                   setFailure(

@@ -76,14 +76,9 @@ test("login, two-device synchronization, offline edits and logout isolation", as
   await page.getByLabel("Название колоды").fill(title);
   await page.getByLabel("Термин 1", { exact: true }).fill("Haus");
   await page.getByLabel("Определение 1", { exact: true }).fill("дом");
-  await page.getByLabel("Изображение 1", { exact: true }).setInputFiles({
-    name: "card.png",
-    mimeType: "image/png",
-    buffer: Buffer.from(
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
-      "base64",
-    ),
-  });
+  await expect(
+    page.locator('input[type="file"][accept^="image/"]'),
+  ).toHaveCount(0);
   await page
     .getByRole("button", { name: "Сохранить колоду", exact: true })
     .first()
@@ -108,7 +103,7 @@ test("login, two-device synchronization, offline edits and logout isolation", as
     await expect(
       second.getByRole("heading", { name: title, exact: true }),
     ).toBeVisible();
-    await expect(second.locator(".set-term-row img")).toHaveCount(1);
+    await expect(second.locator(".set-term-row img")).toHaveCount(0);
     await page.evaluate(() =>
       navigator.serviceWorker.ready.then(() => undefined),
     );

@@ -1,3 +1,4 @@
+import { clearDraftJournals } from "../../services/draftRecovery";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -8,7 +9,7 @@ import { guestBackup, importGuestLibrary } from "../../cloud/migration";
 import { createBackup, type Backup } from "../../services/backup";
 import { download } from "../../services/csv";
 import { useSettings } from "../../store/useSettings";
-import { clearImageRequests } from "../../cloud/images";
+import { withoutCardImages } from "../../cloud/images";
 import { useUI } from "../../store/useUI";
 import { dataTables } from "../../cloud/types";
 import { syncNow, useSync } from "../../cloud/sync";
@@ -97,9 +98,7 @@ export function AccountPanel() {
       if (error) throw error;
       if (data) rows.push(data as RemoteRecord);
     }
-    const { transformImages } = await import("../../cloud/images");
-    for (const row of rows)
-      row.data = await transformImages(supabase, user.id, row.data, "download");
+    for (const row of rows) row.data = withoutCardImages(row.data);
     if (
       currentDatabase() !== database ||
       useAccount.getState().user?.id !== user.id
@@ -404,7 +403,6 @@ export function AccountPanel() {
                     },
                   },
                 );
-                clearImageRequests();
                 if (error || !data?.ok)
                   throw new Error(
                     "Не удалось очистить файлы. Проверьте доступность серверной функции.",
@@ -512,6 +510,7 @@ export function AccountPanel() {
                   if (useAccount.getState().user?.id === user.id)
                     await signOut();
                   await database.delete();
+                  clearDraftJournals(database.owner);
                   localStorage.removeItem(`easy-learn-settings-${user.id}`);
                 })
               }

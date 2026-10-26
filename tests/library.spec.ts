@@ -34,25 +34,9 @@ test("autosaved editor resumes edits, imports, formats, reorders and publishes a
   await page
     .getByRole("button", { name: "Жирный термин 1", exact: true })
     .click();
-  await page.getByLabel("Изображение 1", { exact: true }).setInputFiles({
-    name: "card.png",
-    mimeType: "image/png",
-    buffer: Buffer.from(
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
-      "base64",
-    ),
-  });
-  await page
-    .getByLabel("Изображение термина 1", { exact: true })
-    .setInputFiles({
-      name: "term.png",
-      mimeType: "image/png",
-      buffer: Buffer.from(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
-        "base64",
-      ),
-    });
-  await expect(page.locator(".editor-image img")).toHaveCount(2);
+  await expect(
+    page.locator('input[type="file"][accept^="image/"]'),
+  ).toHaveCount(0);
   await page
     .getByRole("button", { name: "Поднять карточку 2", exact: true })
     .click();
@@ -70,7 +54,7 @@ test("autosaved editor resumes edits, imports, formats, reorders and publishes a
   await expect(
     page.getByRole("button", { name: "Жирный термин 2", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator(".editor-image img")).toHaveCount(2);
+  await expect(page.locator(".editor-image img")).toHaveCount(0);
   await page
     .getByRole("button", { name: "Сохранить колоду", exact: true })
     .first()
@@ -85,7 +69,7 @@ test("autosaved editor resumes edits, imports, formats, reorders and publishes a
     "Haus",
     "Zug",
   ]);
-  await expect(page.locator(".set-term-row img")).toHaveCount(2);
+  await expect(page.locator(".set-term-row img")).toHaveCount(0);
   await page
     .getByRole("button", { name: "Перевернуть карточку", exact: true })
     .click();

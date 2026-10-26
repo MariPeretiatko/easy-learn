@@ -5,7 +5,7 @@
 - Репозиторий: https://github.com/MariPeretiatko/easy-learn
 - Сайт: https://easy-learn.pages.dev
 - Supabase: `https://kxwrdfsesojeveegtakj.supabase.co`, project ref `kxwrdfsesojeveegtakj`.
-- Повторная проверка 25 октября 2026: код регистрации уже отправлен в `main` (коммит `8175b45`, `login/regist`) и опубликован. `/login` открывается, но показывает «Облачный аккаунт пока не подключён» и отключённую кнопку входа: сборка `index-GveC65bA.js` не содержит URL/публичного ключа проекта. Следующий шаг — переменные `VITE_SUPABASE_URL` и `VITE_SUPABASE_PUBLISHABLE_KEY` для Production в Cloudflare Pages и новая сборка.
+- Проверка сборки 26 октября: опубликованный `client-2HnudwCv.js` содержит постоянный `null`. Локальная сборка с переменными окружения корректно встраивает URL и ключ; причина расхождения в процессе Cloudflare требует Build log. Добавлены остановка невалидной облачной сборки, проверка сгенерированного JavaScript и `build-info.json`. Подробности и точные настройки: [CLOUDFLARE_BUILD_AUDIT.md](CLOUDFLARE_BUILD_AUDIT.md).
 - Supabase Auth отвечает HTTP 200, email-регистрация включена, подтверждение email требуется. После выполнения SQL пользователем повторная проверка Data API возвращает HTTP 401 / SQL 42501 для `sync_records` и `apply_sync_batch`: объекты доступны в кэше схемы, доступ без входа запрещён ожидаемыми правами. Вошедшие пользователи и доставка писем на внешнем проекте ещё не проверены.
 
 В Supabase Auth → URL Configuration задать:
@@ -69,7 +69,7 @@ pnpm test:cloud:cleanup
 ## Cloudflare Pages
 
 1. Подключить репозиторий через Pages → Create project.
-2. Настроить Node.js 22, pnpm 10.34.7, сборку `pnpm build`, выходную папку `dist`.
+2. Настроить Node.js 22, pnpm 10.34.7, сборку `npm run build:cloudflare`, выходную папку `dist`, Root directory оставить пустым (корень репозитория).
 3. Для каждого окружения сборки задать:
    - `VITE_SUPABASE_URL`;
    - `VITE_SUPABASE_PUBLISHABLE_KEY`.
@@ -77,7 +77,7 @@ pnpm test:cloud:cleanup
 5. Выпустить preview и проверить `/login`, `/register`, `/auth/callback`, `/sets/:id`, восстановление пароля, обновление PWA и офлайн-запуск.
 6. Указать окончательный домен в Supabase Auth и `ALLOWED_ORIGINS`, затем выпустить production.
 
-Проект использует стандартный SPA fallback Cloudflare Pages при отсутствии корневого `404.html`. Файл `public/_headers` настраивает базовые заголовки и обновление service worker. `wrangler.toml` задаёт папку сборки для CLI.
+Проект использует стандартный SPA fallback Cloudflare Pages при отсутствии корневого `404.html`. Файл `public/_headers` настраивает базовые заголовки и обновление service worker. Корневой `wrangler.toml` удалён: настройки Pages задаются в панели Cloudflare; функции backend находятся отдельно в Supabase.
 
 ## Рабочая модель данных
 

@@ -1,3 +1,5 @@
+import { clearDraftJournals } from "./draftRecovery";
+import { withoutCardImages } from "../cloud/images";
 import { markRestore } from "../db/syncMiddleware";
 import { validateSubjects } from "./subjectValidation";
 import { languages } from "../utils/format";
@@ -79,25 +81,9 @@ function validateCardMedia(card: RecordValue) {
     )
       throw new Error("Некорректные допустимые ответы карточки");
   }
-  for (const key of ["image", "termImage"]) {
-    const value = card[key];
-    if (
-      value !== undefined &&
-      (typeof value !== "string" ||
-        !/^data:image\/(png|jpeg|webp|gif);base64,/.test(value))
-    )
-      throw new Error("Некорректное изображение карточки");
-    if (typeof value === "string") {
-      const payload = value.slice(value.indexOf(",") + 1);
-      if (payload.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(payload))
-        throw new Error("Повреждено изображение карточки");
-      const bytes =
-        (payload.length / 4) * 3 -
-        (payload.endsWith("==") ? 2 : payload.endsWith("=") ? 1 : 0);
-      if (bytes > 3 * 1024 * 1024)
-        throw new Error("Изображение должно быть меньше 3 МБ");
-    }
-  }
+  // Accept old backups, but permanently discard unsupported card media.
+  delete card.image;
+  delete card.termImage;
   for (const key of ["bold", "italic", "underline", "highlight"])
     if (card[key] !== undefined && typeof card[key] !== "boolean")
       throw new Error("Некорректное оформление карточки");
@@ -432,24 +418,26 @@ export async function createBackup(
   settings = useSettings.getState().settings,
 ): Promise<Backup> {
   const db = database;
-  return db.transaction("r", db.tables, async () => ({
-    version: 1 as const,
-    exportedAt: new Date().toISOString(),
-    words: await db.words.toArray(),
-    decks: await db.decks.toArray(),
-    texts: await db.texts.toArray(),
-    videos: await db.videos.toArray(),
-    reviews: (await db.reviews.toArray()).map(
-      ({ baseline: _baseline, ...review }) => review,
-    ),
-    statistics: await db.statistics.toArray(),
-    recent: await db.recent.toArray(),
-    settings,
-    drafts: await db.drafts.toArray(),
-    collections: await db.collections.toArray(),
-    solutions: await db.solutions.toArray(),
-    testResults: await db.testResults.toArray(),
-  }));
+  return db.transaction("r", db.tables, async () =>
+    withoutCardImages({
+      version: 1 as const,
+      exportedAt: new Date().toISOString(),
+      words: await db.words.toArray(),
+      decks: await db.decks.toArray(),
+      texts: await db.texts.toArray(),
+      videos: await db.videos.toArray(),
+      reviews: (await db.reviews.toArray()).map(
+        ({ baseline: _baseline, ...review }) => review,
+      ),
+      statistics: await db.statistics.toArray(),
+      recent: await db.recent.toArray(),
+      settings,
+      drafts: await db.drafts.toArray(),
+      collections: await db.collections.toArray(),
+      solutions: await db.solutions.toArray(),
+      testResults: await db.testResults.toArray(),
+    }),
+  );
 }
 export async function restoreBackup(backup: Backup) {
   const database = currentDatabase();
@@ -485,6 +473,7 @@ export async function restoreBackup(backup: Backup) {
     await db.solutions.bulkPut(validated.solutions);
     await db.testResults.bulkPut(validated.testResults);
   });
+  clearDraftJournals(database.owner);
   if (currentDatabase() === database)
     useSettings.getState().update(validated.settings);
 }

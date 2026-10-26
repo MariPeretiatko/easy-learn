@@ -1,27 +1,14 @@
+import { cloudConfigurationMessage } from "./configuration";
 import type { Database } from "./database.types";
 import { createClient } from "@supabase/supabase-js";
 const url = import.meta.env.VITE_SUPABASE_URL?.trim();
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
-function validKey(value: string) {
-  if (value.startsWith("sb_secret_")) return false;
-  try {
-    const payload = JSON.parse(atob(value.split(".")[1] ?? ""));
-    return payload.role === "anon";
-  } catch {
-    return value.startsWith("sb_publishable_");
-  }
-}
-export const cloudConfigurationError =
-  !url && !key
-    ? "Вход временно недоступен: сервер аккаунтов не настроен."
-    : !url || !key || !/^https?:\/\//.test(url) || !validKey(key)
-      ? "Некорректная публичная конфигурация Supabase."
-      : "";
+export const cloudConfigurationError = cloudConfigurationMessage(url, key);
 export const supabase = cloudConfigurationError
   ? null
   : createClient<Database>(url!, key!, {
       auth: {
-        flowType: "pkce",
+        flowType: "implicit",
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: false,

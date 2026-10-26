@@ -18,7 +18,7 @@ it("roundtrips its own JSON above the previous 20 MB import limit", async () => 
   expect(new Blob([json]).size).toBeGreaterThan(20_000_000);
   expect(parseBackup(json).words).toHaveLength(5);
 });
-it("rejects oversized media and mixed-language decks before replacing data", async () => {
+it("discards legacy media and rejects mixed-language decks before replacing data", async () => {
   const backup = await createBackup();
   backup.words = [
     newWord({
@@ -28,7 +28,7 @@ it("rejects oversized media and mixed-language decks before replacing data", asy
       image: `data:image/png;base64,${"A".repeat(4 * 1024 * 1024 + 4)}`,
     }),
   ];
-  expect(() => parseBackup(JSON.stringify(backup))).toThrow("3 МБ");
+  expect(parseBackup(JSON.stringify(backup)).words[0].image).toBeUndefined();
   delete backup.words[0].image;
   backup.decks = [
     {

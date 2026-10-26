@@ -1,3 +1,4 @@
+import { clearDraftJournals } from "./draftRecovery";
 import { dataTables } from "../cloud/types";
 import { wordIdentity } from "./wordModel";
 import { db } from "../db/database";
@@ -261,6 +262,7 @@ export async function remember(
   });
 }
 export async function clearData() {
+  const owner = db.owner;
   await db.transaction("rw", db.tables, async () => {
     for (const table of db.tables.filter((table) =>
       (dataTables as readonly string[]).includes(table.name),
@@ -271,4 +273,5 @@ export async function clearData() {
     if (db.owner)
       await db.preferences.put({ id: "statisticsBaseline", value: [] });
   });
+  clearDraftJournals(owner);
 }

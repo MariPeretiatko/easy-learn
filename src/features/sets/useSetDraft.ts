@@ -121,23 +121,17 @@ export function useSetDraft() {
     setSaved(false);
     setDraft(value);
     try {
-      journalDraft(draftDatabase.owner, value);
+      journalDraft(draftDatabase.owner, value, previous ?? undefined);
     } catch {
       setError(
         "Не удалось создать аварийную копию. Не закрывайте страницу до завершения сохранения.",
       );
     }
     clearTimeout(saveTimer.current);
-    const changedMedia = value.cards.some((card) => {
-      const old = previous?.cards.find((item) => item.id === card.id);
-      return card.image !== old?.image || card.termImage !== old?.termImage;
-    });
-    if (changedMedia) void persist(value).catch(() => undefined);
-    else
-      saveTimer.current = setTimeout(
-        () => void persist(value).catch(() => undefined),
-        150,
-      );
+    saveTimer.current = setTimeout(
+      () => void persist(value).catch(() => undefined),
+      150,
+    );
   };
   useEffect(() => {
     const flush = () => {
@@ -224,7 +218,6 @@ export function useSetDraft() {
     draft,
     saved,
     error,
-    setError,
     busy,
     patch,
     cardPatch,

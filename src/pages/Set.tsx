@@ -292,18 +292,8 @@ export function SetPage() {
               className={`${w.bold ? "is-bold " : ""}${w.italic ? "is-italic " : ""}${w.underline ? "is-underlined " : ""}${w.highlight ? "is-highlighted" : ""}`}
             >
               <span>{w.term}</span>
-              {w.termImage && (
-                <img
-                  className="term-thumbnail"
-                  src={w.termImage}
-                  alt={w.term}
-                />
-              )}
             </strong>
-            <span>
-              {w.translation}
-              {w.image && <img src={w.image} alt={w.term} />}
-            </span>
+            <span>{w.translation}</span>
             <div>
               <button
                 className="icon-button"

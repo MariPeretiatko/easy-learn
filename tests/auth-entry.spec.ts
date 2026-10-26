@@ -145,3 +145,71 @@ test("account switching respects reduced-motion preference", async ({
   ).toBe("0s");
   await expect(page.locator("form input:visible")).toHaveCount(3);
 });
+
+test("registration distinguishes email delivery errors from connection failures", async ({
+  page,
+}) => {
+  await page.route("**/auth/v1/signup**", (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({
+        code: "unexpected_failure",
+        msg: "Error sending confirmation email",
+      }),
+    }),
+  );
+  await page.goto("/register");
+  await page.getByLabel("Имя", { exact: true }).fill("Ученик");
+  await page.getByLabel("Email", { exact: true }).fill("learner@example.com");
+  await page.getByLabel("Пароль", { exact: true }).fill("Example-pass-123!");
+  await page.getByRole("button", { name: "Регистрация", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText(
+    "Сервис отправки писем временно недоступен",
+  );
+});
+
+test("callback removes failed email credentials from history and explains the error", async ({
+  page,
+}) => {
+  await page.goto(
+    "/auth/callback#error=access_denied&error_description=Expired",
+  );
+  await expect(page.getByRole("alert")).toContainText("Ссылка недействительна");
+  expect(new URL(page.url()).hash).toBe("");
+});
+
+test("a recovery email opens in a fresh browser without a PKCE verifier", async ({
+  page,
+}) => {
+  const user = {
+    id: "11111111-1111-4111-8111-111111111111",
+    email: "learner@example.com",
+    aud: "authenticated",
+    role: "authenticated",
+    app_metadata: {},
+    user_metadata: {},
+    created_at: "2026-01-01T00:00:00Z",
+  };
+  await page.route("**/auth/v1/user", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(user),
+    }),
+  );
+  const encode = (value: unknown) =>
+    Buffer.from(JSON.stringify(value)).toString("base64url");
+  const token = `${encode({ alg: "HS256", typ: "JWT" })}.${encode({ sub: user.id, exp: Math.floor(Date.now() / 1000) + 3600 })}.${encode("signature")}`;
+  await page.goto(
+    `/auth/callback#access_token=${token}&refresh_token=test-refresh-token&type=recovery`,
+  );
+  await expect(page).toHaveURL(/\/reset-password$/);
+  await expect(
+    page.getByRole("heading", { name: "Новый пароль", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Новый пароль", exact: true }),
+  ).toBeEnabled();
+  expect(new URL(page.url()).hash).toBe("");
+});

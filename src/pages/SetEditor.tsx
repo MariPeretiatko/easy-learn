@@ -24,17 +24,8 @@ import type { SetDraft } from "../types";
 import { Loading, Modal, Confirm } from "../components/UI";
 export function SetEditorPage() {
   const languages = useSubjectNames();
-  const {
-    draft,
-    saved,
-    error,
-    setError,
-    busy,
-    patch,
-    cardPatch,
-    move,
-    publish,
-  } = useSetDraft();
+  const { draft, saved, error, busy, patch, cardPatch, move, publish } =
+    useSetDraft();
   const [importing, setImporting] = useState(false);
   const [dragged, setDragged] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState(true);
@@ -279,7 +270,6 @@ export function SetEditorPage() {
                     cards: draft.cards.filter((item) => item.id !== card.id),
                   })
                 }
-                onError={setError}
                 onDragStart={() => setDragged(card.id)}
                 onDragEnd={() => setDragged(null)}
                 onDrop={() => {

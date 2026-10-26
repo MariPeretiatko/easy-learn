@@ -23,7 +23,8 @@
     "cloud:types": "node scripts/generate-cloud-types.mjs",
     "test:cloud:cleanup": "node scripts/test-cloud-delete.mjs --cleanup",
     "check:bundle": "node scripts/check-bundle.mjs",
-    "test:auth": "playwright test --config playwright.auth.config.ts"
+    "test:auth": "playwright test --config playwright.auth.config.ts",
+    "build:cloudflare": "node scripts/build-cloudflare.mjs"
   },
   "dependencies": {
     "@fontsource-variable/comfortaa": "^5.3.0",

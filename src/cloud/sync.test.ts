@@ -306,3 +306,40 @@ it("captures bulk changes with a constant number of metadata writes", async () =
     await isolated.delete();
   }
 });
+it("remote draft deletion removes its recovery journal after the database commit", async () => {
+  const { journalDraft, recoverDraft } =
+    await import("../services/draftRecovery");
+  const draft = {
+    id: "removed-draft",
+    title: "old",
+    description: "",
+    language: "de" as const,
+    nativeLanguage: "ru" as const,
+    createdAt: 1,
+    updatedAt: 2,
+    cards: [{ id: "c", term: "Haus", definition: "дом" }],
+  };
+  await database.localOnly(async () => {
+    await database.drafts.put(draft);
+  });
+  journalDraft(database.owner, draft);
+  await synchronize(database, {
+    pull: async (cursor) =>
+      cursor
+        ? []
+        : [
+            {
+              kind: "drafts",
+              record_id: draft.id,
+              revision: 1,
+              deleted: true,
+              data: null,
+            },
+          ],
+    push: async () => {
+      throw new Error("Unexpected push");
+    },
+  });
+  expect(await database.drafts.get(draft.id)).toBeUndefined();
+  expect(recoverDraft(database.owner, draft.id)).toBeUndefined();
+});

@@ -43,10 +43,7 @@
   }
   .editor-card-body {
     gap: 20px;
-    grid-template-columns: 1fr 1fr 85px;
-  }
-  .editor-image {
-    width: 85px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .game-tiles {
     gap: 16px;
@@ -256,11 +253,6 @@
     gap: 20px;
     padding: 20px;
   }
-  .editor-image {
-    grid-column: 1/-1;
-    justify-self: end;
-    height: 60px;
-  }
   .editor-card-body textarea {
     font-size: 16px;
   }
@@ -380,9 +372,6 @@
     grid-template-columns: 1fr;
     padding: 20px 18px 10px;
     gap: 17px;
-  }
-  .editor-image {
-    grid-column: 1;
   }
   .editor-card-body textarea {
     min-height: 50px;

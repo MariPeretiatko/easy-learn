@@ -196,12 +196,6 @@ export function SetPreview({
                       ? word.translation
                       : word.term}
                 </strong>
-                {(flipped === reverse ? word.termImage : word.image) && (
-                  <img
-                    src={flipped === reverse ? word.termImage : word.image}
-                    alt={word.term}
-                  />
-                )}
               </button>
             </>
           ) : (

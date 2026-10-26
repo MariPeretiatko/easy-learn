@@ -69,3 +69,26 @@ it("does not regress completed reading progress after scroll events", async () =
   await TextRepository.progress("text", 25);
   expect((await db.texts.get("text"))?.readingProgress).toBe(100);
 });
+it("clearing and restoring the library removes recovery journals only for its owner", async () => {
+  const { journalDraft, recoverDraft, clearDraftJournals } =
+    await import("./draftRecovery");
+  const draft = {
+    id: "recoverable",
+    title: "old",
+    description: "",
+    language: "de" as const,
+    nativeLanguage: "ru" as const,
+    cards: [{ id: "c", term: "Haus", definition: "дом" }],
+    createdAt: 1,
+    updatedAt: 2,
+  };
+  journalDraft(db.owner, draft);
+  journalDraft("other-account", draft);
+  await clearData();
+  expect(recoverDraft(db.owner, draft.id)).toBeUndefined();
+  expect(recoverDraft("other-account", draft.id)?.title).toBe("old");
+  journalDraft(db.owner, draft);
+  await restoreBackup(await createBackup());
+  expect(recoverDraft(db.owner, draft.id)).toBeUndefined();
+  clearDraftJournals("other-account");
+});
