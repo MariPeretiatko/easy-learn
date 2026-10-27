@@ -103,6 +103,7 @@ export async function reorganizeGermanLibrary(bundle: LibraryBundle) {
           id: folder.id,
           title: folder.title,
           kind: "folder",
+          language: bundle.language,
           description: "",
           deckIds: [],
           createdAt: now,

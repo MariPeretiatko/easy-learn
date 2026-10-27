@@ -42,7 +42,13 @@ export function Dashboard() {
       word.nextReviewAt <= Date.now(),
   ).length;
   const day = data.statistics.find((entry) => entry.date === dateKey());
-  const recent = recentStudyItems(data);
+  const recent = recentStudyItems(data, settings.learningLanguage);
+  const drafts = data.drafts.filter(
+    (draft) => draft.language === settings.learningLanguage,
+  );
+  const decks = data.decks.filter(
+    (deck) => deck.language === settings.learningLanguage,
+  );
   return (
     <div className="quizlet-home hero redesigned-home">
       <section className="home-intro">
@@ -215,18 +221,18 @@ export function Dashboard() {
         <div className="home-empty">
           <Layers size={29} />
           <h3>
-            {data.decks.length
+            {decks.length
               ? "Откройте колоду из библиотеки"
               : "Начните свою коллекцию знаний"}
           </h3>
           <p>Здесь будут последние открытые модули и колоды.</p>
           <Link
             className="button secondary"
-            to={data.decks.length ? "/library" : "/create-set"}
+            to={decks.length ? "/library" : "/create-set"}
           >
-            {data.decks.length ? "В библиотеку" : "Создать карточки"}
+            {decks.length ? "В библиотеку" : "Создать карточки"}
           </Link>
-          {!data.decks.length && (
+          {!decks.length && (
             <button
               className="button ghost"
               onClick={() =>
@@ -238,13 +244,13 @@ export function Dashboard() {
           )}
         </div>
       )}
-      {!!data.drafts.length && (
+      {!!drafts.length && (
         <>
           <div className="home-section-heading">
             <h2>Ваши черновики</h2>
           </div>
           <div className="quizlet-set-list">
-            {data.drafts.map((draft) => (
+            {drafts.map((draft) => (
               <Link
                 className="quizlet-set-row"
                 key={draft.id}

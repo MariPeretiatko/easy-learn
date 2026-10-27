@@ -1,3 +1,5 @@
+import { useAccount } from "../cloud/auth";
+import { emailInitial } from "../utils/profile";
 import { SetDialogs, type SetDialog } from "../features/sets/SetDialogs";
 import { useSettings } from "../store/useSettings";
 import { SetPreview } from "../features/sets/SetPreview";
@@ -34,6 +36,7 @@ import { perform } from "../store/useUI";
 import { download, vocabularyCSV } from "../services/csv";
 import { Empty, Loading } from "../components/UI";
 export function SetPage() {
+  const user = useAccount((state) => state.user);
   const languages = useSubjectNames();
   const settings = useSettings((state) => state.settings);
   const { id } = useParams();
@@ -46,7 +49,8 @@ export function SetPage() {
   const [sort, setSort] = useState("original");
   const menuRef = useRef<HTMLDivElement>(null);
   useDismissMenu(menuRef, menu, () => setMenu(false));
-  const deck = data?.deck;
+  const deck =
+    data?.deck?.language === settings.learningLanguage ? data.deck : undefined;
   useEffect(() => {
     if (deck) void perform(() => remember("decks", deck.id, deck.title));
   }, [deck?.id, deck?.title]);
@@ -61,7 +65,7 @@ export function SetPage() {
     return (
       <Empty
         title="Колода не найдена"
-        description="Возможно, она была удалена."
+        description="Колода относится к другому языку или была удалена."
         action={
           <Link className="button" to="/library">
             Ваша библиотека
@@ -246,9 +250,7 @@ export function SetPage() {
       </section>
       <div className="set-author-row">
         <div>
-          <span className="set-author-avatar">
-            {settings.profileAvatar ?? "🧑‍🎓"}
-          </span>
+          <span className="set-author-avatar">{emailInitial(user?.email)}</span>
           <span>
             <small>Создано</small>
             <strong>{settings.profileName ?? "Вами"}</strong>

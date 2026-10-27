@@ -49,7 +49,6 @@ export function AccountPanel() {
   const [name, setName] = useState(
     settings.profileName ?? user?.user_metadata.display_name ?? "",
   );
-  const [avatar, setAvatar] = useState(settings.profileAvatar ?? "🧑‍🎓");
   const [backup, setBackup] = useState<Backup | null>(null);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -59,14 +58,8 @@ export function AccountPanel() {
   useEffect(() => {
     if (!dirty) {
       setName(settings.profileName ?? user?.user_metadata.display_name ?? "");
-      setAvatar(settings.profileAvatar ?? "🧑‍🎓");
     }
-  }, [
-    settings.profileName,
-    settings.profileAvatar,
-    user?.user_metadata.display_name,
-    dirty,
-  ]);
+  }, [settings.profileName, user?.user_metadata.display_name, dirty]);
   async function perform(action: () => Promise<unknown>) {
     setBusy(true);
     setError("");
@@ -182,15 +175,12 @@ export function AccountPanel() {
                   .from("profiles")
                   .update({
                     display_name: name.trim(),
-                    avatar,
                     updated_at: new Date().toISOString(),
                   })
                   .eq("id", user.id);
                 if (error) throw error;
                 if (currentDatabase() !== database) return;
-                useSettings
-                  .getState()
-                  .update({ profileName: name.trim(), profileAvatar: avatar });
+                useSettings.getState().update({ profileName: name.trim() });
                 setDirty(false);
                 await syncNow();
               });
@@ -207,20 +197,6 @@ export function AccountPanel() {
                   setName(e.target.value);
                 }}
               />
-            </label>
-            <label>
-              Аватар
-              <select
-                value={avatar}
-                onChange={(e) => {
-                  setDirty(true);
-                  setAvatar(e.target.value);
-                }}
-              >
-                {["🧑‍🎓", "👩‍🎓", "👨‍🎓", "🦊", "🐱", "🌻"].map((value) => (
-                  <option key={value}>{value}</option>
-                ))}
-              </select>
             </label>
             <button className="button" disabled={busy}>
               Сохранить профиль

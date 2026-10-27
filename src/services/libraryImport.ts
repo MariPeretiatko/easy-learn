@@ -77,7 +77,7 @@ export async function importLibrary(bundle: LibraryBundle) {
             ...(folderId ? { folderId } : {}),
             description: "",
             deckIds,
-            ...(kind === "course" ? { language: bundle.language } : {}),
+            language: bundle.language,
             createdAt: now,
             updatedAt: now,
           };

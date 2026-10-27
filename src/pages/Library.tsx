@@ -1,3 +1,6 @@
+import { collectionsForLanguage } from "../services/libraryScope";
+import { useAccount } from "../cloud/auth";
+import { emailInitial } from "../utils/profile";
 import { compareLibraryCollections } from "../services/recent";
 import { useSubjectNames } from "../hooks/useSubjectNames";
 import { useRef, useState } from "react";
@@ -25,6 +28,7 @@ import { collectionDeckIds } from "../services/collections";
 
 import type { Deck } from "../types";
 export function LibraryPage() {
+  const user = useAccount((state) => state.user);
   const languages = useSubjectNames();
   const data = useData(["decks", "collections", "drafts", "recent"]);
   const [params, setParams] = useSearchParams();
@@ -39,16 +43,21 @@ export function LibraryPage() {
   const requestedTab = params.get("tab") ?? "sets";
   const tab = requestedTab === "folders" ? "folders" : "modules";
   if (!data) return <Loading />;
+  const collections = collectionsForLanguage(
+    data.collections,
+    data.decks,
+    settings.learningLanguage,
+  );
   const matches = (title: string) =>
     title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
   const groupedDecks = new Set(
-    data.collections
+    collections
       .filter((item) => item.kind === "course")
       .flatMap((item) => item.deckIds),
   );
-  const levelFolder = data.collections.find((item) => item.id === level);
+  const levelFolder = collections.find((item) => item.id === level);
   const levelDecks = new Set(
-    levelFolder ? collectionDeckIds(levelFolder, data.collections) : [],
+    levelFolder ? collectionDeckIds(levelFolder, collections) : [],
   );
   const decks = data.decks
     .filter(
@@ -142,7 +151,7 @@ export function LibraryPage() {
             onChange={(event) => setLevel(event.target.value)}
           >
             <option value="">Все уровни</option>
-            {data.collections
+            {collections
               .filter((item) => item.kind === "folder")
               .map((folder) => (
                 <option key={folder.id} value={folder.id}>
@@ -187,7 +196,7 @@ export function LibraryPage() {
             </button>
           </div>
           <div className="collection-grid">
-            {data.collections
+            {collections
               .filter(
                 (c) =>
                   c.kind === (tab === "folders" ? "folder" : "course") &&
@@ -200,13 +209,7 @@ export function LibraryPage() {
                       settings.learningLanguage) === settings.learningLanguage),
               )
               .sort((a, b) =>
-                compareLibraryCollections(
-                  a,
-                  b,
-                  sort,
-                  data.recent,
-                  data.collections,
-                ),
+                compareLibraryCollections(a, b, sort, data.recent, collections),
               )
               .map((c) => (
                 <Link
@@ -218,27 +221,26 @@ export function LibraryPage() {
                   {c.folderId && (
                     <small className="module-level">
                       {
-                        data.collections.find(
-                          (folder) => folder.id === c.folderId,
-                        )?.title
+                        collections.find((folder) => folder.id === c.folderId)
+                          ?.title
                       }
                     </small>
                   )}
                   <h2>{c.title}</h2>
                   <p>
                     {c.kind === "folder"
-                      ? `${data.collections.filter((item) => item.folderId === c.id).length} модулей · `
+                      ? `${collections.filter((item) => item.folderId === c.id).length} модулей · `
                       : ""}
-                    {collectionDeckIds(c, data.collections).length} колод
+                    {collectionDeckIds(c, collections).length} колод
                   </p>
                 </Link>
               ))}
           </div>
           {tab === "folders" &&
-            !data.collections.some((c) => c.kind === "folder") && (
+            !collections.some((c) => c.kind === "folder") && (
               <Empty
                 title="Организуйте колоды в папки"
-                description="Объединяйте колоды по темам и изучайте весь модуль, например «Немецкий A1»."
+                description="Объединяйте учебные материалы по темам и уровням."
               />
             )}
         </>
@@ -295,7 +297,7 @@ export function LibraryPage() {
                         </span>
                         <i />
                         <span className="inline-avatar">
-                          {settings.profileAvatar ?? "🧑‍🎓"}
+                          {emailInitial(user?.email)}
                         </span>
                         <span>{settings.profileName ?? "Моя библиотека"}</span>
                         {deck.favorite && (
@@ -374,7 +376,7 @@ export function LibraryPage() {
           ))}
           {!decks.length &&
             !drafts.length &&
-            !data.collections.some(
+            !collections.some(
               (item) =>
                 item.kind === "course" &&
                 (!level || item.folderId === level) &&

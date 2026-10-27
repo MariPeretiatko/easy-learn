@@ -1,3 +1,4 @@
+import { collectionsForLanguage } from "../services/libraryScope";
 import { useSubjectNames } from "../hooks/useSubjectNames";
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
@@ -30,32 +31,31 @@ export function CollectionsPage({
   const [params, setParams] = useSearchParams();
   const [edit, setEdit] = useState(false);
   const [remove, setRemove] = useState(false);
-  const opened = data?.collections.find((c) => c.id === id && c.kind === kind);
+  const collections = data
+    ? collectionsForLanguage(data.collections, data.decks, language)
+    : [];
+  const opened = collections.find((c) => c.id === id && c.kind === kind);
   useEffect(() => {
     if (opened?.kind === "course")
       void remember("modules", opened.id, opened.title);
   }, [opened?.id, opened?.title]);
   if (!data) return <Loading />;
-  const collection = data.collections.find(
-    (c) => c.id === id && c.kind === kind,
-  );
-  const children = data.collections.filter(
+  const collection = collections.find((c) => c.id === id && c.kind === kind);
+  const children = collections.filter(
     (item) =>
       kind === "folder" && item.kind === "course" && item.folderId === id,
   );
   const childDecks = new Set(children.flatMap((item) => item.deckIds));
   const allDeckIds = collection
-    ? collectionDeckIds(collection, data.collections)
+    ? collectionDeckIds(collection, collections)
     : [];
   const visibleDecks = collection
     ? allDeckIds.filter(
         (deckId) => kind !== "folder" || !childDecks.has(deckId),
       )
     : [];
-  const parent = data.collections.find(
-    (item) => item.id === collection?.folderId,
-  );
-  const items = data.collections.filter((c) => c.kind === kind);
+  const parent = collections.find((item) => item.id === collection?.folderId);
+  const items = collections.filter((c) => c.kind === kind);
   const names = { folder: "Папки", course: "Модули" };
   const singular = { folder: "папку", course: "модуль" };
   const studyLanguage =
@@ -70,7 +70,7 @@ export function CollectionsPage({
     return (
       <Empty
         title="Коллекция не найдена"
-        description="Возможно, она была удалена."
+        description="Коллекция относится к другому языку или была удалена."
         action={
           <Link className="button" to="/library?tab=folders">
             В библиотеку

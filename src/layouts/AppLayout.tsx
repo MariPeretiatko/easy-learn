@@ -34,9 +34,9 @@ const studyLinks = [
 ] as const;
 export function AppLayout() {
   const data = useData(["recent", "decks", "collections"]);
-  const recent = data ? recentStudyItems(data) : [];
   const [menuOpen, setMenuOpen] = useState(false);
   const settings = useSettings((s) => s.settings);
+  const recent = data ? recentStudyItems(data, settings.learningLanguage) : [];
   const location = useLocation();
   const sidebar = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -194,7 +194,7 @@ export function AppLayout() {
         <OfflineStatus />
         <CloudStatus />
         <main className="main-content">
-          <Outlet />
+          <Outlet key={settings.learningLanguage} />
         </main>
       </div>
       <WordEditorHost />

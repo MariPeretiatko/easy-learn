@@ -1,9 +1,12 @@
+import { useSettings } from "../store/useSettings";
+import { collectionsForLanguage } from "../services/libraryScope";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { PageHeading, Loading, Empty, SearchInput } from "../components/UI";
 import { useData } from "../hooks/useData";
 export function SearchPage() {
-  const data = useData([
+  const language = useSettings((state) => state.settings.learningLanguage);
+  const allData = useData([
     "drafts",
     "collections",
     "solutions",
@@ -20,7 +23,20 @@ export function SearchPage() {
   }>({ query: "", limits: {} });
   const limit = (title: string) =>
     expanded.query === query ? (expanded.limits[title] ?? 50) : 50;
-  if (!data) return <Loading />;
+  if (!allData) return <Loading />;
+  const data = {
+    ...allData,
+    collections: collectionsForLanguage(
+      allData.collections,
+      allData.decks,
+      language,
+    ),
+    words: allData.words.filter((item) => item.language === language),
+    decks: allData.decks.filter((item) => item.language === language),
+    drafts: allData.drafts.filter((item) => item.language === language),
+    texts: allData.texts.filter((item) => item.language === language),
+    videos: allData.videos.filter((item) => item.language === language),
+  };
   const matches = (text: string) =>
     query.trim() &&
     text.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());

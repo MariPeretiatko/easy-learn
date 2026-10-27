@@ -162,7 +162,8 @@
   place-items: center;
   background: var(--clone-row);
   border-radius: 50%;
-  font-size: 29px;
+  font-size: 18px;
+  font-weight: 700;
 }
 
 .set-author-row small {

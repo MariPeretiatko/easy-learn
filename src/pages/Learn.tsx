@@ -1,3 +1,4 @@
+import { collectionsForLanguage } from "../services/libraryScope";
 import { useSubjectNames } from "../hooks/useSubjectNames";
 import { Link, useSearchParams } from "react-router-dom";
 import { Layers, Brain, ClipboardCheck, Puzzle, RotateCcw } from "lucide-react";
@@ -39,9 +40,16 @@ export function LearnPage() {
         words={data.words}
       />
     );
-  const selectedDecks = data.decks.filter((deck) => deckIds.includes(deck.id));
+  const selectedDecks = data.decks.filter(
+    (deck) => deck.language === language && deckIds.includes(deck.id),
+  );
+  const collections = collectionsForLanguage(
+    data.collections,
+    data.decks,
+    language,
+  );
   const deck = selectedDecks.length === 1 ? selectedDecks[0] : undefined;
-  const selectedCollections = data.collections.filter((collection) =>
+  const selectedCollections = collections.filter((collection) =>
     collectionIds.includes(collection.id),
   );
   const collection =
@@ -64,10 +72,12 @@ export function LearnPage() {
   const scopeDeckIds = new Set([
     ...selectedDecks.map((deck) => deck.id),
     ...selectedCollections.flatMap((collection) =>
-      collectionDeckIds(collection, data.collections),
+      collectionDeckIds(collection, collections),
     ),
   ]);
-  const scopedDecks = data.decks.filter((deck) => scopeDeckIds.has(deck.id));
+  const scopedDecks = data.decks.filter(
+    (deck) => deck.language === language && scopeDeckIds.has(deck.id),
+  );
   const practiceLanguage = scopedDecks[0]?.language ?? language;
   const selectedWords = new Set(scopedDecks.flatMap((deck) => deck.wordIds));
   const sourceTitle =

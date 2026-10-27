@@ -1,3 +1,4 @@
+import { emailInitial } from "../utils/profile";
 import { useAccount, signOut } from "../cloud/auth";
 import { perform } from "../store/useUI";
 import { useSubjectNames } from "../hooks/useSubjectNames";
@@ -104,11 +105,25 @@ export function WorkspaceHeader({
           onChange={(event) => {
             if (event.target.value === "__add_subject__")
               setAddingSubject(true);
-            else
+            else {
               update({
                 learningLanguage: event.target
                   .value as typeof settings.learningLanguage,
               });
+              const lists = [
+                "/",
+                "/latest",
+                "/library",
+                "/vocabulary",
+                "/reader",
+                "/videos",
+                "/search",
+                "/games",
+                "/progress",
+                "/settings",
+              ];
+              if (!lists.includes(location.pathname)) navigate("/library");
+            }
           }}
         >
           {Object.entries(languages).map(([id, label]) => (
@@ -171,7 +186,7 @@ export function WorkspaceHeader({
               setDropdown(dropdown === "profile" ? null : "profile")
             }
           >
-            {settings.profileAvatar ?? "🧑‍🎓"}
+            {emailInitial(user?.email)}
           </button>
           {dropdown === "profile" && (
             <div className="header-dropdown profile-dropdown">

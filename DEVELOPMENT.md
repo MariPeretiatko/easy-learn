@@ -20,7 +20,8 @@
 4. A completed test commits its assessments and saved result together. Matching assessments distinguish individual involved words.
 5. Removing deck membership or a deck retains vocabulary; removing a word removes memberships and review history. Removing a folder detaches child modules.
 6. Backups validate before replacing data. Keep existing IDs, table/schema compatibility and prepared-library migration markers. Deprecated settings are ignored without discarding current profile/rule settings.
-7. Written answers are submitted by Enter/Done; test drafts remain editable until the final check. Do not reintroduce submit-on-blur.
+7. Folders and modules belong to one learning language. Persist it even for empty folders; validate deck and parent-folder language at save boundaries. Legacy collections are scoped by their contents through `collectionsForLanguage`; viewing another language must not mutate stored memberships.
+8. Written answers are submitted by Enter/Done; test drafts remain editable until the final check. Do not reintroduce submit-on-blur.
 
 ## Verification
 

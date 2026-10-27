@@ -1,3 +1,4 @@
+import { collectionsForLanguage } from "../services/libraryScope";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { BookOpen, Layers, Search, ArrowRight } from "lucide-react";
@@ -40,21 +41,15 @@ export function StudySelection({
       .filter((word) => word.status !== "ignored" && word.language === language)
       .map((word) => word.id),
   );
-  const modules = collections.filter(
-    (item) =>
-      item.kind === "course" &&
-      (item.language ??
-        availableDecks.find((deck) => item.deckIds.includes(deck.id))
-          ?.language) === language,
+  const scopedCollections = collectionsForLanguage(
+    collections,
+    decks,
+    language,
   );
-  const folders = collections.filter(
-    (item) =>
-      item.kind === "folder" &&
-      (modules.some((module) => module.folderId === item.id) ||
-        availableDecks.some((deck) => item.deckIds.includes(deck.id))),
-  );
+  const modules = scopedCollections.filter((item) => item.kind === "course");
+  const folders = scopedCollections.filter((item) => item.kind === "folder");
   const folderDecks = new Set(
-    collections.find((item) => item.id === folder)?.deckIds ?? [],
+    scopedCollections.find((item) => item.id === folder)?.deckIds ?? [],
   );
   for (const module of modules.filter((item) => item.folderId === folder))
     for (const id of module.deckIds) folderDecks.add(id);

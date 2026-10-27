@@ -1,10 +1,24 @@
+import { collectionsForLanguage } from "./libraryScope";
 import type { Collection, Deck, RecentItem } from "../types";
 
-export function recentStudyItems(data: {
-  recent: RecentItem[];
-  decks: Deck[];
-  collections: Collection[];
-}) {
+export function recentStudyItems(
+  data: {
+    recent: RecentItem[];
+    decks: Deck[];
+    collections: Collection[];
+  },
+  language?: string,
+) {
+  if (language)
+    data = {
+      ...data,
+      decks: data.decks.filter((deck) => deck.language === language),
+      collections: collectionsForLanguage(
+        data.collections,
+        data.decks,
+        language,
+      ),
+    };
   return data.recent
     .flatMap((item) => {
       const entity =

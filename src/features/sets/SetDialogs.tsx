@@ -1,3 +1,4 @@
+import { collectionsForLanguage } from "../../services/libraryScope";
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Check, Copy, Download } from "lucide-react";
@@ -27,40 +28,35 @@ export function SetDialogs({
 }) {
   const [copied, setCopied] = useState(false);
   const navigate = useNavigate();
+  const availableCollections = collectionsForLanguage(
+    collections,
+    decks,
+    deck.language,
+  ).filter((item) => item.kind !== "class");
   return (
     <>
       {" "}
       {dialog === "folders" && (
         <Modal title="Добавить в модуль или папку" onClose={() => onClose()}>
-          {collections
-            .filter(
-              (c) =>
-                c.kind === "folder" ||
-                (c.kind === "course" &&
-                  (c.language ??
-                    decks.find((item) => c.deckIds.includes(item.id))
-                      ?.language ??
-                    deck.language) === deck.language),
-            )
-            .map((c) => (
-              <label className="check-label" key={c.id}>
-                <input
-                  type="checkbox"
-                  checked={c.deckIds.includes(deck.id)}
-                  onChange={(e) =>
-                    void perform(() =>
-                      setCollectionDeckMembership(
-                        c.id,
-                        deck.id,
-                        e.target.checked,
-                      ),
-                    )
-                  }
-                />
-                {c.title} · {c.kind === "course" ? "Модуль" : "Папка"}
-              </label>
-            ))}
-          {!collections.some((c) => c.kind === "folder") && (
+          {availableCollections.map((c) => (
+            <label className="check-label" key={c.id}>
+              <input
+                type="checkbox"
+                checked={c.deckIds.includes(deck.id)}
+                onChange={(e) =>
+                  void perform(() =>
+                    setCollectionDeckMembership(
+                      c.id,
+                      deck.id,
+                      e.target.checked,
+                    ),
+                  )
+                }
+              />
+              {c.title} · {c.kind === "course" ? "Модуль" : "Папка"}
+            </label>
+          ))}
+          {!availableCollections.length && (
             <p className="muted">
               Создайте модуль или папку в библиотеке, чтобы организовать колоды.
             </p>

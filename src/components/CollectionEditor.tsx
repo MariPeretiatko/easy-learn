@@ -1,3 +1,4 @@
+import { collectionsForLanguage } from "../services/libraryScope";
 import { useSubjectNames } from "../hooks/useSubjectNames";
 import { AutoTextarea } from "./AutoTextarea";
 import { useState } from "react";
@@ -42,7 +43,8 @@ export function CollectionEditor({
       : {
           id: uid(),
           kind,
-          ...(kind === "course" ? { language, folderId: parentFolderId } : {}),
+          language,
+          ...(kind === "course" ? { folderId: parentFolderId } : {}),
           title: "",
           description: "",
           deckIds: [],
@@ -109,6 +111,7 @@ export function CollectionEditor({
                       ...value,
                       language: event.target.value as typeof language,
                       deckIds: [],
+                      folderId: undefined,
                     })
                   }
                 >
@@ -133,7 +136,11 @@ export function CollectionEditor({
                   }
                 >
                   <option value="">Без папки</option>
-                  {collections
+                  {collectionsForLanguage(
+                    collections,
+                    decks,
+                    value.language ?? language,
+                  )
                     .filter((item) => item.kind === "folder")
                     .map((folder) => (
                       <option key={folder.id} value={folder.id}>
@@ -147,11 +154,7 @@ export function CollectionEditor({
             <div className="collection-set-picker">
               {decks.length ? (
                 decks
-                  .filter(
-                    (deck) =>
-                      value.kind !== "course" ||
-                      deck.language === value.language,
-                  )
+                  .filter((deck) => deck.language === value.language)
                   .map((deck) => (
                     <label className="check-label" key={deck.id}>
                       <input

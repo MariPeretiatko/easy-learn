@@ -170,3 +170,39 @@ it("keeps module language and shared membership in backups, rejecting mixed-lang
   await DeckRepository.delete("de-a");
   expect((await db.collections.get("a1"))?.deckIds).toEqual(["de-b"]);
 });
+
+it("stores empty folders in the selected language and rejects cross-language memberships", async () => {
+  const { useSettings } = await import("../store/useSettings");
+  await publishDraft(draft("de", [["Haus", "дом"]]));
+  await publishDraft(draft("en", [["house", "дом"]], "en"));
+  useSettings.getState().update({ learningLanguage: "en" });
+  const folder = {
+    id: "empty-en-folder",
+    kind: "folder" as const,
+    title: "English",
+    description: "",
+    deckIds: [],
+    createdAt: 1,
+    updatedAt: 1,
+  };
+  await saveCollection(folder);
+  expect((await db.collections.get(folder.id))?.language).toBe("en");
+  await expect(
+    saveCollection({ ...folder, language: "en", deckIds: ["de"] }),
+  ).rejects.toThrow("языке");
+  await expect(
+    saveCollection({
+      id: "de-module",
+      kind: "course",
+      folderId: folder.id,
+      title: "German",
+      description: "",
+      language: "de",
+      deckIds: ["de"],
+      createdAt: 1,
+      updatedAt: 1,
+    }),
+  ).rejects.toThrow("одном языке");
+  expect(await db.collections.get("de-module")).toBeUndefined();
+  useSettings.getState().update({ learningLanguage: "de" });
+});

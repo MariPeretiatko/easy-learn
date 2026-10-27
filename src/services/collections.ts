@@ -1,5 +1,7 @@
 import type { Collection } from "../types";
 import { db } from "../db/database";
+import { useSettings } from "../store/useSettings";
+import { collectionsForLanguage } from "./libraryScope";
 
 export function collectionDeckIds(
   collection: Collection,
@@ -38,16 +40,44 @@ export async function saveCollection(collection: Collection) {
       throw new Error("Одна из колод был удалён");
     if (collection.kind === "course") {
       if (!collection.language) throw new Error("Выберите язык модуля");
-      if (decks.some((deck) => deck?.language !== collection.language))
-        throw new Error("Все колоды модуля должны быть на выбранном языке");
+    }
+    const language =
+      collection.language ??
+      decks[0]?.language ??
+      useSettings.getState().settings.learningLanguage;
+    if (decks.some((deck) => deck?.language !== language))
+      throw new Error("Все колоды должны быть на выбранном языке");
+    if (collection.kind === "folder") {
+      const children = await db.collections
+        .where("folderId")
+        .equals(collection.id)
+        .toArray();
+      const childDecks = await db.decks.bulkGet(
+        children.flatMap((child) => child.deckIds),
+      );
+      if (
+        children.some(
+          (child) => child.language && child.language !== language,
+        ) ||
+        childDecks.some((deck) => deck && deck.language !== language)
+      )
+        throw new Error("Все модули папки должны быть на выбранном языке");
     }
     if (collection.folderId) {
       const parent = await db.collections.get(collection.folderId);
       if (collection.kind !== "course" || parent?.kind !== "folder")
         throw new Error("Выберите существующую папку для модуля");
+      const matching = collectionsForLanguage(
+        await db.collections.toArray(),
+        await db.decks.toArray(),
+        language,
+      );
+      if (!matching.some((item) => item.id === parent.id))
+        throw new Error("Папка и модуль должны быть на одном языке");
     }
     await db.collections.put({
       ...collection,
+      language,
       title: collection.title.trim(),
       updatedAt: Date.now(),
     });

@@ -213,3 +213,61 @@ test("a recovery email opens in a fresh browser without a PKCE verifier", async 
   ).toBeEnabled();
   expect(new URL(page.url()).hash).toBe("");
 });
+
+test("profile uses the email initial even when an old emoji avatar is saved", async ({
+  page,
+}) => {
+  const id = "22222222-2222-4222-8222-222222222222";
+  await page.addInitScript((id) => {
+    localStorage.setItem(
+      `easy-learn-import-deutsch-a1-a2-b1-ru-v2:${id}`,
+      "done",
+    );
+    localStorage.setItem(
+      `easy-learn-settings-${id}`,
+      JSON.stringify({
+        state: { settings: { profileAvatar: "🐱" } },
+        version: 0,
+      }),
+    );
+  }, id);
+  const user = {
+    id,
+    email: "maria@example.com",
+    aud: "authenticated",
+    role: "authenticated",
+    app_metadata: {},
+    user_metadata: {},
+    created_at: "2026-01-01T00:00:00Z",
+  };
+  await page.route("**/auth/v1/user", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(user),
+    }),
+  );
+  await page.route("**/rest/v1/**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: route.request().url().includes("account_deletion_pending")
+        ? "false"
+        : "[]",
+    }),
+  );
+  const encode = (value: unknown) =>
+    Buffer.from(JSON.stringify(value)).toString("base64url");
+  const token = `${encode({ alg: "HS256", typ: "JWT" })}.${encode({ sub: id, exp: Math.floor(Date.now() / 1000) + 3600 })}.${encode("signature")}`;
+  await page.goto(
+    `/auth/callback#access_token=${token}&refresh_token=test-refresh&type=signup`,
+  );
+  await expect(
+    page.getByRole("button", { name: "Мой профиль", exact: true }),
+  ).toHaveText("M");
+  await page.goto("/settings");
+  await expect(
+    page.getByRole("button", { name: "Мой профиль", exact: true }),
+  ).toHaveText("M");
+  await expect(page.getByLabel("Аватар", { exact: true })).toHaveCount(0);
+});

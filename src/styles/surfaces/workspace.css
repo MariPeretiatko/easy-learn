@@ -98,8 +98,9 @@ body {
 }
 
 .quizlet-shell .topbar .avatar {
-  font-size: 25px;
-  background: #ffda69;
+  font-size: 16px;
+  background: var(--primary);
+  color: #fff;
   border: 0;
   outline: 0;
   width: 34px;
